@@ -6,7 +6,7 @@
 #define _BDROID_BUILDCFG_H
 
 #define BNEP_INCLUDED           FALSE
-#define BTA_PAN_INCLUDED        FALSE
+#define BTA_PAN_INCLUDED        TRUE
 
 #define BTA_AV_INCLUDED         TRUE
 #define BTA_AV_SINK_INCLUDED    TRUE
