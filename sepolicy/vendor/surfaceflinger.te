@@ -1,0 +1,2 @@
+# This is required for camera operations.
+allow surfaceflinger hal_camera_default:fd use;

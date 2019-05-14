@@ -1,0 +1,26 @@
+
+# TTY devices
+/dev/ttySC3                                                                     u:object_r:tty_device:s0
+
+# Broadcast radio device
+/dev/radio0                                                                     u:object_r:input_device:s0
+
+# Sensor devices
+/dev/iio:device[01]                                                             u:object_r:input_device:s0
+
+# UIM bluetooth helper
+/vendor/bin/uim                                                                 u:object_r:uim_exec:s0
+
+# Kingfisher HALs
+/vendor/bin/hw/android.hardware.automotive.vehicle@2.0-service.kingfisher       u:object_r:hal_vehicle_default_exec:s0
+/vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher           u:object_r:hal_broadcastradio_default_exec:s0
+/vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher                  u:object_r:hal_sensors_default_exec:s0
+/vendor/bin/hw/android.hardware.audio@4.0-service.kingfisher                    u:object_r:hal_audio_default_exec:s0
+/vendor/bin/hw/android.hardware.bluetooth@1.0-service.kingfisher                u:object_r:hal_bluetooth_default_exec:s0
+/vendor/bin/hw/android.hardware.automotive.evs@1.0-service.kingfisher           u:object_r:hal_evs_kingfisher_exec:s0
+/vendor/bin/hw/android.hardware.wifi@1.2-service.kingfisher                     u:object_r:hal_wifi_default_exec:s0
+/vendor/bin/hw/android.hardware.camera.provider@2.4-external-service.kingfisher u:object_r:hal_camera_default_exec:s0
+/vendor/bin/hw/android.hardware.camera.provider@2.4-service.kingfisher          u:object_r:hal_camera_default_exec:s0
+
+# Same process HALs installed by platform into /vendor
+/vendor/lib(64)?/hw/audio.primary.kingfisher.so                                 u:object_r:same_process_hal_file:s0

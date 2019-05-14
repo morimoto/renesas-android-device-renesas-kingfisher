@@ -1,0 +1,33 @@
+//
+//  Copyright (C) 2017 GlobalLogic
+//
+
+cc_binary {
+    relative_install_path: "hw",
+    proprietary: true,
+
+    name: "android.hardware.sensors@1.0-service.kingfisher",
+    init_rc: ["android.hardware.sensors@1.0-service.kingfisher.rc"],
+
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror"
+    ],
+
+    srcs: [
+        "service.cpp",
+        "Sensors.cpp",
+        "IIO_sensor.cpp"
+    ],
+
+    shared_libs: [
+        "liblog",
+        "libbase",
+        "libutils",
+        "libbinder",
+        "libhidlbase",
+        "libhidltransport",
+        "android.hardware.sensors@1.0"
+    ]
+}

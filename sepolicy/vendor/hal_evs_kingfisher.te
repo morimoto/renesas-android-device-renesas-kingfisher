@@ -1,0 +1,29 @@
+type hal_evs_kingfisher, domain;
+type hal_evs_kingfisher_exec, exec_type, vendor_file_type, file_type;
+
+hal_server_domain(hal_evs_kingfisher, hal_evs)
+
+init_daemon_domain(hal_evs_kingfisher)
+
+allow hal_evs_kingfisher self:capability { sys_admin };
+
+allow hal_evs_kingfisher device:dir { open read };
+
+allow hal_evs_kingfisher sysfs:file { open read };
+
+allow hal_evs_kingfisher gpu_device:chr_file { getattr ioctl open read write map };
+allow hal_evs_kingfisher ion_device:chr_file { ioctl open read };
+allow hal_evs_kingfisher video_device:chr_file { ioctl open read write };
+
+allow hal_evs_kingfisher hal_graphics_mapper_hwservice:hwservice_manager find;
+allow hal_evs_kingfisher hal_composer_hwservice:hwservice_manager find;
+
+allow hal_evs_kingfisher hal_evs_hwservice:hwservice_manager add;
+allow hal_evs_kingfisher hidl_base_hwservice:hwservice_manager add;
+
+allow hal_evs_kingfisher hal_graphics_allocator_default:binder { call transfer };
+allow hal_evs_kingfisher hal_graphics_composer_default:binder { call transfer };
+
+allow hal_evs_kingfisher hal_graphics_allocator_default:fd use;
+
+allow hal_evs_kingfisher display_prop:file { getattr map open read };

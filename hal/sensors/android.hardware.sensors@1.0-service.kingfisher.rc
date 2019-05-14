@@ -1,0 +1,36 @@
+service vendor.sensors-1-0 /vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher
+    class hal
+    user system
+    group system wakelock input root
+    capabilities BLOCK_SUSPEND SYS_NICE
+
+on early-init
+    insmod /vendor/lib/modules/industrialio-triggered-buffer.ko
+    insmod /vendor/lib/modules/lsm9ds0.ko
+
+on late-init
+    mkdir /config/iio/triggers/hrtimer/lsm9ds0_acc-magn_trigger
+    write /sys/bus/iio/devices/iio:device0/trigger/current_trigger lsm9ds0_acc-magn_trigger
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_accel_x_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_accel_y_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_accel_z_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_magn_x_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_magn_y_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_magn_z_en 1
+    write /sys/bus/iio/devices/iio:device0/scan_elements/in_timestamp_en 1
+    write /sys/bus/iio/devices/iio:device0/buffer/length 100
+    write /sys/bus/iio/devices/iio:device0/in_accel_sampling_frequency 200
+    write /sys/bus/iio/devices/iio:device0/in_accel_scale 1
+    write /sys/bus/iio/devices/iio:device0/in_magn_sampling_frequency 100
+    write /sys/bus/iio/devices/iio:device0/in_magn_scale 1
+    write /sys/bus/iio/devices/trigger0/sampling_frequency 100
+    mkdir /config/iio/triggers/hrtimer/lsm9ds0_gyro_trigger
+    write /sys/bus/iio/devices/iio:device1/trigger/current_trigger lsm9ds0_gyro_trigger
+    write /sys/bus/iio/devices/iio:device1/scan_elements/in_anglvel_x_en 1
+    write /sys/bus/iio/devices/iio:device1/scan_elements/in_anglvel_y_en 1
+    write /sys/bus/iio/devices/iio:device1/scan_elements/in_anglvel_z_en 1
+    write /sys/bus/iio/devices/iio:device1/scan_elements/in_timestamp_en 1
+    write /sys/bus/iio/devices/iio:device1/buffer/length 100
+    write /sys/bus/iio/devices/iio:device1/in_anglvel_sampling_frequency 380
+    write /sys/bus/iio/devices/iio:device1/in_anglvel_scale 1
+    write /sys/bus/iio/devices/trigger1/sampling_frequency 95

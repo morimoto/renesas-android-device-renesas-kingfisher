@@ -1,0 +1,36 @@
+/dev/ion                                                          0666    system       graphics
+/dev/pvrsrvkm                                                     0666    system       graphics
+/dev/pvr_sync                                                     0666    system       graphics
+/dev/sw_sync                                                      0666    system       graphics
+/dev/dri/controlD64                                               0660    system       graphics
+/dev/composer                                                     0660    system       graphics
+/dev/rgnmm                                                        0660    mediacodec   media
+/dev/rgnmmbuf                                                     0660    mediacodec   media
+/dev/vspm_if                                                      0660    mediacodec   media
+/dev/uvcs                                                         0660    mediacodec   media
+/dev/video0                                                       0666    media        media
+/dev/video1                                                       0666    media        media
+/dev/video2                                                       0666    media        media
+/dev/video3                                                       0666    media        media
+/dev/radio0                                                       0660    system       audio
+/dev/graphics/fb0                                                 0666    system       graphics
+/dev/tee0                                                         0660    system       keystore
+/dev/teepriv0                                                     0660    system       keystore
+/dev/ttyUSB0                                                      0666    system       system
+/dev/iio:device0                                                  0666    system       system
+/dev/iio:device1                                                  0666    system       system
+/dev/ttySC1                                                       0660    bluetooth    bluetooth
+/dev/ttySC3                                                       0660    system       system
+/dev/block/platform/soc/ee140000.sd/by-name/pst                   0600    system       system
+
+/sys/bus/iio/devices/iio:device*   buffer/length                  0664    system       system
+/sys/bus/iio/devices/iio:device*   buffer/enable                  0664    system       system
+/sys/bus/iio/devices/iio:device*   buffer/watermark               0664    system       system
+/sys/bus/iio/devices/trigger*      sampling_frequency             0664    system       system
+
+/sys/bus/iio/devices/iio:device*   in_accel_sampling_frequency    0664    system       system
+/sys/bus/iio/devices/iio:device*   in_magn_sampling_frequency     0664    system       system
+/sys/bus/iio/devices/iio:device*   in_anglvel_sampling_frequency  0664    system       system
+/sys/bus/iio/devices/iio:device*   in_accel_scale                 0664    system       system
+/sys/bus/iio/devices/iio:device*   in_magn_scale                  0664    system       system
+/sys/bus/iio/devices/iio:device*   in_anglvel_scale               0664    system       system
