@@ -53,7 +53,6 @@ PRODUCT_COPY_FILES += \
 
 # Bluetooth
 PRODUCT_PACKAGES += \
-    android.hardware.bluetooth@1.0-service.kingfisher \
     uim \
     TIInit_11.8.32.bts
 

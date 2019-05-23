@@ -16,7 +16,6 @@
 /vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher           u:object_r:hal_broadcastradio_default_exec:s0
 /vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher                  u:object_r:hal_sensors_default_exec:s0
 /vendor/bin/hw/android.hardware.audio@4.0-service.kingfisher                    u:object_r:hal_audio_default_exec:s0
-/vendor/bin/hw/android.hardware.bluetooth@1.0-service.kingfisher                u:object_r:hal_bluetooth_default_exec:s0
 /vendor/bin/hw/android.hardware.automotive.evs@1.0-service.kingfisher           u:object_r:hal_evs_kingfisher_exec:s0
 /vendor/bin/hw/android.hardware.wifi@1.2-service.kingfisher                     u:object_r:hal_wifi_default_exec:s0
 /vendor/bin/hw/android.hardware.camera.provider@2.4-external-service.kingfisher u:object_r:hal_camera_default_exec:s0
