@@ -14,28 +14,26 @@
 # limitations under the License.
 #
 
-PRODUCT_OUT               := $(OUT_DIR)/target/product/$(TARGET_PRODUCT)
-PRODUCT_OUT_ABS           := $(abspath $(PRODUCT_OUT))
-
-TARGET_KERNEL_MODULES_OUT := $(PRODUCT_OUT_ABS)/obj/KERNEL_MODULES
+PRODUCT_OUT         := $(OUT_DIR)/target/product/$(TARGET_PRODUCT)
+KERNEL_MODULES_OUT  := $(PRODUCT_OUT)/obj/KERNEL_MODULES
 
 BOARD_VENDOR_KERNEL_MODULES += \
-	$(TARGET_KERNEL_MODULES_OUT)/wl18xx.ko \
-	$(TARGET_KERNEL_MODULES_OUT)/wlcore.ko \
-	$(TARGET_KERNEL_MODULES_OUT)/wlcore_sdio.ko
+	$(KERNEL_MODULES_OUT)/wl18xx.ko \
+	$(KERNEL_MODULES_OUT)/wlcore.ko \
+	$(KERNEL_MODULES_OUT)/wlcore_sdio.ko
 
 BOARD_VENDOR_KERNEL_MODULES += \
-	$(TARGET_KERNEL_MODULES_OUT)/btwilink.ko \
-	$(TARGET_KERNEL_MODULES_OUT)/st_drv.ko
+	$(KERNEL_MODULES_OUT)/btwilink.ko \
+	$(KERNEL_MODULES_OUT)/st_drv.ko
 
 BOARD_VENDOR_KERNEL_MODULES += \
-	$(TARGET_KERNEL_MODULES_OUT)/radio-i2c-si4689.ko
+	$(KERNEL_MODULES_OUT)/radio-i2c-si4689.ko
 
 BOARD_VENDOR_KERNEL_MODULES += \
-	$(TARGET_KERNEL_MODULES_OUT)/lsm9ds0.ko \
-	$(TARGET_KERNEL_MODULES_OUT)/industrialio-triggered-buffer.ko
+	$(KERNEL_MODULES_OUT)/lsm9ds0.ko \
+	$(KERNEL_MODULES_OUT)/industrialio-triggered-buffer.ko
 
 BOARD_VENDOR_KERNEL_MODULES += \
-	$(TARGET_KERNEL_MODULES_OUT)/uvcvideo.ko
+	$(KERNEL_MODULES_OUT)/uvcvideo.ko
 
 include device/renesas/common/ModulesCommon.mk
