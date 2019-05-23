@@ -19,7 +19,9 @@ TARGET_BOOTLOADER_BOARD_NAME := kingfisher
 include device/renesas/common/BoardConfigCommon.mk
 
 # Wi-Fi
-BOARD_WIFI_VENDOR := TI
+BOARD_WIFI_VENDOR                := ti
+BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_wl18xx
+BOARD_HOSTAPD_PRIVATE_LIB        := lib_driver_cmd_wl18xx
 
 # External camera
 ifeq ($(USE_CAMERA_V4L2_KINGFISHER_HAL),true)
