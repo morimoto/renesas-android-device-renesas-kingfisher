@@ -56,6 +56,12 @@ PRODUCT_PACKAGES += \
     uim \
     TIInit_11.8.32.bts
 
+# Wi-Fi
+PRODUCT_PACKAGES += \
+    android.hardware.wifi@1.2-service.kingfisher \
+    wl18xx-fw-4.bin \
+    wl18xx-conf.bin
+
 # External camera
 ifeq ($(USE_CAMERA_V4L2_KINGFISHER_HAL),true)
 PRODUCT_PACKAGES += camera.v4l2.kingfisher
