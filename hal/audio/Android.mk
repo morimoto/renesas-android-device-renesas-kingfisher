@@ -73,6 +73,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_MODULE := android.hardware.audio@4.0-service.kingfisher
 LOCAL_INIT_RC := android.hardware.audio@4.0-service.kingfisher.rc
+LOCAL_VINTF_FRAGMENTS := android.hardware.audio@4.0-service.kingfisher.xml
 
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
