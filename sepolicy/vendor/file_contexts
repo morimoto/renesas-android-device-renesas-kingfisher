@@ -12,7 +12,6 @@
 /vendor/bin/uim                                                                 u:object_r:uim_exec:s0
 
 # Kingfisher HALs
-/vendor/bin/hw/android.hardware.automotive.vehicle@2.0-service.kingfisher       u:object_r:hal_vehicle_default_exec:s0
 /vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher           u:object_r:hal_broadcastradio_default_exec:s0
 /vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher                  u:object_r:hal_sensors_default_exec:s0
 /vendor/bin/hw/android.hardware.audio@4.0-service.kingfisher                    u:object_r:hal_audio_default_exec:s0
