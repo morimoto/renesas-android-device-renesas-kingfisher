@@ -74,7 +74,8 @@ on boot
 
 on property:ro.boot.bootreason=watchdog
     chmod 777 /sys/fs/pstore
-    mkdir /data/vendor/ramoops_logger 777 system log
+    chmod 777 /sys/fs/pstore/console-ramoops-0
+    mkdir /data/vendor/ramoops_logger/ 0777 shell shell
     start ramoops_logger
 
 service vendor.pvrsrvctl /vendor/bin/pvrsrvctl --start
@@ -122,7 +123,7 @@ service watchdogd /sbin/watchdogd 10 20
     seclabel u:r:watchdogd:s0
 
 service ramoops_logger /vendor/bin/ramoops_logger
-    user system
-    group log
+    user shell
+    group shell
     oneshot
     seclabel u:r:ramoops_logger:s0
