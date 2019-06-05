@@ -34,23 +34,6 @@ PRODUCT_COPY_FILES += \
     device/renesas/kingfisher/init/ueventd.kingfisher.rc:$(TARGET_COPY_OUT_VENDOR)/ueventd.rc \
     device/renesas/kingfisher/init/init.recovery.kingfisher.rc:root/init.recovery.kingfisher.rc
 
-# Audio
-USE_XML_AUDIO_POLICY_CONF := 1
-AUDIO_HAL_INTERFACE_VERSION := V4_0
-
-PRODUCT_PACKAGES += \
-    audio.primary.kingfisher \
-    android.hardware.audio.effect@4.0-service.renesas
-
-PRODUCT_PACKAGES += android.hardware.audio@4.0-service.kingfisher
-
-PRODUCT_COPY_FILES += \
-    device/renesas/kingfisher/hal/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
-    device/renesas/kingfisher/hal/audio/r_submix_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/r_submix_audio_policy_configuration.xml \
-    device/renesas/kingfisher/hal/audio/a2dp_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/a2dp_audio_policy_configuration.xml \
-    device/renesas/kingfisher/hal/audio/audio_policy_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_volumes.xml \
-    device/renesas/kingfisher/hal/audio/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml
-
 # Bluetooth
 PRODUCT_PACKAGES += \
     uim \
