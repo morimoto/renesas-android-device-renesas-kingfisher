@@ -45,6 +45,12 @@ PRODUCT_PACKAGES += \
     wl18xx-fw-4.bin \
     wl18xx-conf.bin
 
+# Baroadcast radio
+PRODUCT_PACKAGES += \
+    android.hardware.broadcastradio@2.0-service.kingfisher \
+    si46xx_firmware \
+    si_flash
+
 # External camera
 ifeq ($(USE_CAMERA_V4L2_KINGFISHER_HAL),true)
 PRODUCT_PACKAGES += camera.v4l2.kingfisher

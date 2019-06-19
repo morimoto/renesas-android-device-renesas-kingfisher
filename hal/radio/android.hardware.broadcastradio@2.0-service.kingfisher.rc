@@ -1,0 +1,4 @@
+service vendor.broadcastradio-2-0 /vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher
+    class hal
+    user audioserver
+    group audio

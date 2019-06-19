@@ -1,0 +1,39 @@
+cc_binary {
+    name: "android.hardware.broadcastradio@2.0-service.kingfisher",
+    init_rc: ["android.hardware.broadcastradio@2.0-service.kingfisher.rc"],
+    vintf_fragments: ["android.hardware.broadcastradio@2.0-service.kingfisher.xml"],
+
+    vendor: true,
+    relative_install_path: "hw",
+
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+
+    cppflags: [
+        "-std=c++1z",
+    ],
+
+    srcs: [
+        "BroadcastRadio.cpp",
+        "TunerSession.cpp",
+        "service.cpp"
+    ],
+
+    static_libs: [
+        "android.hardware.broadcastradio@common-utils-2x-lib",
+        "android.hardware.broadcastradio@common-utils-lib",
+    ],
+
+    shared_libs: [
+        "android.hardware.broadcastradio@2.0",
+        "libbase",
+        "libhidlbase",
+        "libhidltransport",
+        "libhardware",
+        "liblog",
+        "libutils",
+    ],
+}
