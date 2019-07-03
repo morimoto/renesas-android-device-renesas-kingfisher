@@ -23,11 +23,6 @@ BOARD_WIFI_VENDOR                := ti
 BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_wl18xx
 BOARD_HOSTAPD_PRIVATE_LIB        := lib_driver_cmd_wl18xx
 
-# External camera
-ifeq ($(USE_CAMERA_V4L2_KINGFISHER_HAL),true)
-  DEVICE_MANIFEST_FILE += device/renesas/kingfisher/manifest.camera.xml
-endif
-
 # Kernel build rules
 BOARD_KERNEL_CMDLINE := androidboot.selinux=permissive
 TARGET_KERNEL_CONFIG := android_q_kingfisher_defconfig
