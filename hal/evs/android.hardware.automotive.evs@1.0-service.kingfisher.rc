@@ -1,7 +1,0 @@
-service vendor.evs-1-0 /vendor/bin/hw/android.hardware.automotive.evs@1.0-service.kingfisher
-    priority -20
-    class early_hal
-    user automotive_evs
-    group automotive_evs
-    onrestart restart evs_manager
-    shutdown critical
