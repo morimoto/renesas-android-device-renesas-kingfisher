@@ -9,6 +9,7 @@
 /dev/iio:device[01]                                                             u:object_r:input_device:s0
 
 # Kingfisher HALs
+/vendor/bin/hw/android.hardware.bluetooth@1.0-service                           u:object_r:hal_bluetooth_default_exec:s0
 /vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher           u:object_r:hal_broadcastradio_default_exec:s0
 /vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher                  u:object_r:hal_sensors_default_exec:s0
 /vendor/bin/hw/android.hardware.wifi@1.2-service.kingfisher                     u:object_r:hal_wifi_default_exec:s0

@@ -48,6 +48,7 @@ on post-fs-data
 on early-boot
     setprop wifi.interface wlan0
     setprop wifi.direct.interface p2p-dev-wlan0
+    setprop ro.boot.btmacaddr FF:FF:FF:FF:FF:FF
     verity_update_state
 
     insmod /vendor/lib/modules/vspm.ko
@@ -58,7 +59,8 @@ on early-boot
 
 on boot
     write /sys/power/wake_lock ws10_suspend_wa
-
+    # BT regulators control
+    chmod 0666 /sys/class/rfkill/rfkill0/state
     insmod /vendor/lib/modules/qos.ko
     insmod /vendor/lib/modules/vspm_if.ko
     insmod /vendor/lib/modules/mmngr.ko
@@ -69,7 +71,6 @@ on boot
     insmod /vendor/lib/modules/wl18xx.ko
     insmod /vendor/lib/modules/micrel.ko
     insmod /vendor/lib/modules/xtensa-hifi.ko
-    insmod /vendor/lib/modules/btwilink.ko
 
 on property:ro.boot.bootreason=watchdog
     chmod 777 /sys/fs/pstore
