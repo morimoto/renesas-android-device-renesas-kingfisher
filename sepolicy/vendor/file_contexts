@@ -8,9 +8,6 @@
 # Sensor devices
 /dev/iio:device[01]                                                             u:object_r:input_device:s0
 
-# UIM bluetooth helper
-/vendor/bin/uim                                                                 u:object_r:uim_exec:s0
-
 # Kingfisher HALs
 /vendor/bin/hw/android.hardware.broadcastradio@2.0-service.kingfisher           u:object_r:hal_broadcastradio_default_exec:s0
 /vendor/bin/hw/android.hardware.sensors@1.0-service.kingfisher                  u:object_r:hal_sensors_default_exec:s0

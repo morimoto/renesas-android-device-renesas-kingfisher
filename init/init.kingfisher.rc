@@ -69,7 +69,6 @@ on boot
     insmod /vendor/lib/modules/wl18xx.ko
     insmod /vendor/lib/modules/micrel.ko
     insmod /vendor/lib/modules/xtensa-hifi.ko
-    insmod /vendor/lib/modules/st_drv.ko
     insmod /vendor/lib/modules/btwilink.ko
 
 on property:ro.boot.bootreason=watchdog
@@ -85,12 +84,6 @@ service vendor.pvrsrvctl /vendor/bin/pvrsrvctl --start
     group root
     oneshot
     seclabel u:r:pvrsrvctl:s0
-
-service vendor.uim /vendor/bin/uim
-    class main
-    user bluetooth
-    group bluetooth net_bt_admin system
-    oneshot
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
         -iwlan0 -Dnl80211 \

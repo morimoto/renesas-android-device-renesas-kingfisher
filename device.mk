@@ -36,7 +36,6 @@ PRODUCT_COPY_FILES += \
 
 # Bluetooth
 PRODUCT_PACKAGES += \
-    uim \
     TIInit_11.8.32.bts
 
 # Wi-Fi
