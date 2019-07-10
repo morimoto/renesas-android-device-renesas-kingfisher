@@ -2,4 +2,6 @@
 allow hal_camera_default shell:fifo_file write;
 allow hal_camera_default hal_graphics_mapper_hwservice:hwservice_manager find;
 allow hal_camera_default gpu_device:chr_file { open read write ioctl map };
-allow hal_camera_default self:netlink_kobject_uevent_socket { create setopt bind read };
+
+# Allow to listen to uevents for hotplug.
+allow hal_camera_default self:netlink_kobject_uevent_socket { getopt create setopt bind read };
