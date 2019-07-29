@@ -51,8 +51,6 @@ on early-boot
     setprop ro.boot.btmacaddr FF:FF:FF:FF:FF:FF
     verity_update_state
 
-    insmod /vendor/lib/modules/vspm.ko
-
     # Setup CAN interface
     exec -- /system/bin/ip link set can0 up type can bitrate 125000
     exec -- /system/bin/ip link set can1 up type can bitrate 125000
@@ -62,6 +60,7 @@ on boot
     # BT regulators control
     chmod 0666 /sys/class/rfkill/rfkill0/state
     insmod /vendor/lib/modules/qos.ko
+    insmod /vendor/lib/modules/vspm.ko
     insmod /vendor/lib/modules/vspm_if.ko
     insmod /vendor/lib/modules/mmngr.ko
     insmod /vendor/lib/modules/mmngrbuf.ko
