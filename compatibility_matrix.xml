@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Comments, Legal notices, etc. here -->
-<compatibility-matrix version="1.0" type="device" target-level="2">
+<compatibility-matrix version="1.0" type="device" target-level="4">
     <hal>
         <name>android.hidl.manager</name>
         <version>1.0</version>
@@ -25,4 +25,10 @@
             <instance>ashmem</instance>
         </interface>
     </hal>
+    <vendor-ndk>
+        <version>29</version>
+    </vendor-ndk>
+    <system-sdk>
+        <version>29</version>
+    </system-sdk>
 </compatibility-matrix>
