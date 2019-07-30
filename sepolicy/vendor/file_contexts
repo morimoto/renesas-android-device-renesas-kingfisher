@@ -1,6 +1,9 @@
 
 # TTY devices
 /dev/ttySC3                                                                     u:object_r:tty_device:s0
+# BT TTY
+/dev/ttySC1                                                                     u:object_r:hci_attach_dev:s0
+/sys/devices/platform/bt-rfkill/rfkill/rfkill0/state                            u:object_r:sysfs_bluetooth_writable:s0
 
 # Broadcast radio device
 /dev/radio0                                                                     u:object_r:input_device:s0
