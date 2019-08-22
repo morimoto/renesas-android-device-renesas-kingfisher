@@ -24,5 +24,5 @@ BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_wl18xx
 BOARD_HOSTAPD_PRIVATE_LIB        := lib_driver_cmd_wl18xx
 
 # Kernel build rules
-TARGET_KERNEL_CONFIG := android_q_kingfisher_defconfig
+TARGET_KERNEL_CONFIG := android_kingfisher_defconfig
 
