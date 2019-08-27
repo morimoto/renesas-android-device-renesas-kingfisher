@@ -97,7 +97,7 @@ void Sensors::pollIIOAccelMagnBuffer()
             uint32_t groupIndex = getGroupIndexByHandle(mSensorGroups[0].sensorHandles[0]);
             uint16_t maxODR = getMaxODRFromGroup(groupIndex);
 
-            for (unsigned int i = 0; i < mSensorGroups[groupIndex].sensorHandles.size(); i++) {
+            for (size_t i = 0; i < mSensorGroups[groupIndex].sensorHandles.size(); i++) {
                 uint32_t sensorHandle = mSensorGroups[groupIndex].sensorHandles[i];
                 uint32_t sensorIndex = handleToIndex(sensorHandle);
                 uint16_t sensorODR = mSensors[sensorIndex]->getODR();

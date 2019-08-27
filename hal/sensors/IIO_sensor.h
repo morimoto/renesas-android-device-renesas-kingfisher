@@ -19,7 +19,7 @@ namespace kingfisher {
 class IIO_sensor
 {
     public:
-        IIO_sensor(IIOSensorDescriptor &);
+        IIO_sensor(const IIOSensorDescriptor &);
         virtual ~IIO_sensor() { };
 
         Return<Result> activate(bool);

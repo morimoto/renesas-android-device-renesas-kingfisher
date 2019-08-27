@@ -19,7 +19,7 @@ namespace sensors {
 namespace V1_0 {
 namespace kingfisher {
 
-IIO_sensor::IIO_sensor(IIOSensorDescriptor &sensorDescriptor):
+IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         mSensorDescriptor(sensorDescriptor),
         mCounter(0),
         mIsEnabled(false),
