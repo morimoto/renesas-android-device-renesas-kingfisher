@@ -70,3 +70,7 @@ endif # External camera
 # Touchcreen configuration
 PRODUCT_COPY_FILES += \
     device/renesas/kingfisher/touchscreen_skeleton.idc:$(TARGET_COPY_OUT_VENDOR)/usr/idc/touchscreen_skeleton.idc
+
+# Sensors HAL
+PRODUCT_PACKAGES += \
+    android.hardware.sensors@1.0-service.kingfisher
