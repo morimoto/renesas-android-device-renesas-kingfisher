@@ -48,7 +48,6 @@ on post-fs-data
 on early-boot
     setprop wifi.interface wlan0
     setprop wifi.direct.interface p2p-dev-wlan0
-    setprop ro.boot.btmacaddr FF:FF:FF:FF:FF:FF
     verity_update_state
 
     # Setup CAN interface

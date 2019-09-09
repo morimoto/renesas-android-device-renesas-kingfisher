@@ -36,8 +36,7 @@ PRODUCT_COPY_FILES += \
 
 # Bluetooth
 PRODUCT_PACKAGES += \
-    android.hardware.bluetooth@1.0-service.renesas \
-    android.hardware.bluetooth@1.0-impl.renesas \
+    android.hardware.bluetooth@1.0-service.kingfisher \
     libbt-vendor \
     TIInit_11.8.32.bts
 
