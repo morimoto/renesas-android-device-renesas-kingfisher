@@ -29,6 +29,7 @@
 #include "mct_protocol.h"
 
 #define HCI_ESCO_CONNECTION_COMP_EVT 0x2C
+#define HCI_BLE_VENDOR_CAP_OCF 0xFD53
 
 static const char* VENDOR_LIBRARY_NAME = "libbt-vendor.so";
 static const char* VENDOR_LIBRARY_SYMBOL_NAME =
@@ -145,6 +146,37 @@ void epilog_cb(bt_vendor_op_result_t result) {
 void a2dp_offload_cb(bt_vendor_op_result_t result, bt_vendor_opcode_t op,
                      uint8_t av_handle) {
   ALOGD("%s result: %d, op: %d, handle: %d", __func__, result, op, av_handle);
+}
+
+uint16_t get_opcode(const hidl_vec<uint8_t>& hci_packet) {
+  size_t opcode_offset = HCI_EVENT_PREAMBLE_SIZE + 1;  // Skip num packets.
+  uint16_t opcode = hci_packet[opcode_offset] | (hci_packet[opcode_offset + 1] << 8);
+  return opcode;
+}
+
+const std::vector<uint8_t> generate_fake_vendor_capabilities_event(void) {
+  const std::vector<uint8_t> buffer = {
+    0x0e,                   // Event Code
+    0x18,                   // Parameter Total Lenght
+    0x01,                   // Num_HCI_Command_Packets
+    0x53, 0xfd,             // Command_Opcode
+    0x00,                   // Command Status
+    0x00,                   // max_advt_instances
+    0x00,                   // offloaded_resolution_of_private-address
+    0x00, 0x00,             // total_scan_results_storage
+    0x00,                   // max_irk_list_sz
+    0x00,                   // filtering_support
+    0x00,                   // max_filter
+    0x00,                   // activity_energy_info_support
+    0x00, 0x00,             // version_supported
+    0x00, 0x00,             // total_num_of_advt_tracked
+    0x00,                   // extended_scan_support
+    0x00,                   // debug_logging_supported
+    0x00,                   // LE_address_generation_offloading_support
+    0x00, 0x00, 0x00, 0x00, // A2DP_source_offload_capability_mask
+    0x00                    // bluetooth_quality_report_support
+  };
+  return buffer;
 }
 
 const bt_vendor_callbacks_t lib_callbacks = {
@@ -404,7 +436,13 @@ void VendorInterface::HandleIncomingEvent(const hidl_vec<uint8_t>& hci_packet) {
       cv.wait(lck, get_sco_cfg_status);
     }
 
-    event_cb_(hci_packet);
+    if (get_opcode(hci_packet) == HCI_BLE_VENDOR_CAP_OCF) {
+      ALOGW("Sending fake response for LE_Get_Vendor_Capabilities_Command");
+      const hidl_vec<uint8_t> fake_hci_packet = generate_fake_vendor_capabilities_event();
+      event_cb_(fake_hci_packet);
+    } else {
+      event_cb_(hci_packet);
+    }
   }
 }
 
