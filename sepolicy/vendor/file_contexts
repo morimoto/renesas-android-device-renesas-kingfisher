@@ -21,3 +21,4 @@
 
 # Same process HALs installed by platform into /vendor
 /vendor/lib(64)?/hw/audio.primary.kingfisher.so                                 u:object_r:same_process_hal_file:s0
+/vendor/lib(64)?/hw/audio.r_submix.kingfisher.so                                u:object_r:same_process_hal_file:s0
