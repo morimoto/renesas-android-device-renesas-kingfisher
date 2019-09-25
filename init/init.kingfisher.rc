@@ -46,7 +46,6 @@ on post-fs-data
     setprop vold.post_fs_data_done 1
 
 on early-boot
-    setprop wifi.interface wlan1
     setprop wifi.direct.interface p2p-dev-wlan0
     verity_update_state
 

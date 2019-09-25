@@ -42,7 +42,7 @@ PRODUCT_PACKAGES += \
 
 # Wi-Fi
 PRODUCT_PACKAGES += \
-    android.hardware.wifi@1.2-service.kingfisher \
+    android.hardware.wifi@1.3-service.ti \
     wl18xx-fw-4.bin \
     wl18xx-conf.bin
 
