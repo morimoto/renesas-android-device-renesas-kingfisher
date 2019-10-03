@@ -24,6 +24,21 @@ struct IIOBuffer
     uint64_t timestamp;
 };
 
+struct IIOBufferAccelMagn
+{
+    Vector3D<int16_t> accel;
+    Vector3D<int16_t> magn;
+    short accell_data_align;
+    short magn_data_align;
+    uint64_t timestamp;
+};
+
+union IIOCombinedBuffer
+{
+    struct IIOBuffer genericBuf;
+    struct IIOBufferAccelMagn accelMagnBuf;
+};
+
 struct AtomicBuffer
 {
     std::queue<Event> eventBuffer;

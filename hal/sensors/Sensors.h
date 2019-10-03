@@ -42,8 +42,7 @@ class Sensors : public ISensors
         Return<void> configDirectReport(int32_t, int32_t, RateLevel, configDirectReport_cb) override;
 
     private:
-        void pollIIODeviceBuffer(IIO_sensor*);
-        void pollIIOAccelMagnBuffer();
+        void pollIIODeviceGroupBuffer(uint32_t groupIndex);
 
         void startPollThreads();
         void stopPollThreads();
@@ -61,6 +60,7 @@ class Sensors : public ISensors
         uint16_t getMaxODRFromGroup(uint32_t);
         void openFileDescriptors();
         void closeFileDescriptors();
+        void parseBuffer(const IIOCombinedBuffer& from, IIOBuffer& to, uint32_t sensorHandle);
 
         /*
          * This method is needed due to Android handles numeration - it starts
@@ -88,15 +88,6 @@ class Sensors : public ISensors
 
         std::vector<IIOSensorDescriptor> mSensorDescriptors;
         std::vector<SensorsGroupDescriptor> mSensorGroups;
-
-        struct IIOBufferAccelMagn
-        {
-            Vector3D<int16_t> accel;
-            Vector3D<int16_t> magn;
-            short accell_data_align;
-            short magn_data_align;
-            uint64_t timestamp;
-        };
 };
 
 }  // namespace kingfisher

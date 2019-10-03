@@ -52,6 +52,7 @@ struct SensorsGroupDescriptor
     int fd = -1;
     std::shared_ptr<std::thread> thread;
     uint16_t currODR = 0;
+    int bufSize = 0;
     bool isActive = false;
 };
 
@@ -61,12 +62,14 @@ static std::vector<SensorsGroupDescriptor> sensor_group_descriptors = {
         .bufferSwitchFileName = "/sys/bus/iio/devices/iio:device0/buffer/enable",
         .triggerFileName = "/sys/bus/iio/devices/trigger0/sampling_frequency",
         .deviceFileName = "/dev/iio:device0",
+        .bufSize = sizeof(IIOBufferAccelMagn)
     },
     {
         .name = "GyroSensorsGroup",
         .bufferSwitchFileName = "/sys/bus/iio/devices/iio:device1/buffer/enable",
         .triggerFileName = "/sys/bus/iio/devices/trigger1/sampling_frequency",
         .deviceFileName = "/dev/iio:device1",
+        .bufSize = sizeof(IIOBuffer)
     },
 };
 

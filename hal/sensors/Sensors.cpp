@@ -53,48 +53,47 @@ Sensors::~Sensors()
     closeFileDescriptors();
 }
 
-void Sensors::pollIIODeviceBuffer(IIO_sensor *sensor)
+/*
+ * Accelerometer and magnetometer need special preparation because they are
+ * placed on the same address, other sensors should work correctly with
+ * generic buffer
+ */
+void Sensors::parseBuffer(const IIOCombinedBuffer& from, IIOBuffer& to, uint32_t sensorHandle)
 {
-    int retryCount = 0;
-
-    while(!mTerminatePollThreads.load()) {
-        IIOBuffer readBuffer;
-        int readBytes = ::read(mSensorGroups[1].fd, &readBuffer, sizeof(readBuffer));
-        if (readBytes == sizeof(readBuffer)) {
-            if(sensor->isActive()) {
-                sensor->transformData(readBuffer);
-                mCondVarBufferReady.notify_one();
-            }
-        } else {
-            ALOGE("Failed to read data from gyro buffer file");
-            ALOGE("Expected %lu bytes, actual %d", sizeof(IIOBuffer), readBytes);
-            if(++retryCount > maxReadRetries)
-                mTerminatePollThreads = true;
+    switch (sensorHandle) {
+        case HandleIndex::ACC_HANDLE: {
+            to.coords = from.accelMagnBuf.accel;
+            to.timestamp = from.accelMagnBuf.timestamp;
+            break;
+        }
+        case HandleIndex::MAGN_HANDLE: {
+            to.coords = from.accelMagnBuf.magn;
+            to.timestamp = from.accelMagnBuf.timestamp;
+            break;
+        }
+        default: {
+            to.coords = from.genericBuf.coords;
+            to.timestamp = from.genericBuf.timestamp;
+            break;
         }
     }
+    return;
 }
 
 /*
- * This method is needed to separate data from 2 sensors inside LSM9DS0 - accelerometer
+ * Generalized method to handle all sensors. Handles special case with LSM9DS0 - accelerometer
  * and magnetometer. They are placed at the same I2C address and have same chrdev in /dev.
- * In case of another sensor can be easily removed with PollIIODeviceBuffer()
- */
-void Sensors::pollIIOAccelMagnBuffer()
+*/
+void Sensors::pollIIODeviceGroupBuffer(uint32_t groupIndex)
 {
     int retryCount = 0;
 
     while(!mTerminatePollThreads.load()) {
-        /* Add convertation to generic buffer */
-        IIOBufferAccelMagn readBuffer;
-        int readBytes = ::read(mSensorGroups[0].fd, &readBuffer, sizeof(readBuffer));
-        if (readBytes == sizeof(readBuffer)) {
-            IIOBuffer accelBuffer, magnBuffer;
+        IIOCombinedBuffer rawBuffer;
+        int readBytes = ::read(mSensorGroups[groupIndex].fd, &rawBuffer, mSensorGroups[groupIndex].bufSize);
+        if (readBytes == mSensorGroups[groupIndex].bufSize) {
+            IIOBuffer readBuffer;
 
-            accelBuffer.coords = readBuffer.accel;
-            accelBuffer.timestamp = readBuffer.timestamp;
-            magnBuffer.coords = readBuffer.magn;
-            magnBuffer.timestamp = readBuffer.timestamp;
-            uint32_t groupIndex = getGroupIndexByHandle(mSensorGroups[0].sensorHandles[0]);
             uint16_t maxODR = getMaxODRFromGroup(groupIndex);
 
             for (size_t i = 0; i < mSensorGroups[groupIndex].sensorHandles.size(); i++) {
@@ -106,19 +105,15 @@ void Sensors::pollIIOAccelMagnBuffer()
                 if (mSensors[sensorIndex]->getTicks() >= maxODR) {
                     mSensors[sensorIndex]->resetTicks();
                     if (mSensors[sensorIndex]->isActive()) {
-                        /*This is just for test*/
-                        if (sensorHandle == HandleIndex::ACC_HANDLE) {
-                            mSensors[sensorIndex]->transformData(accelBuffer);
-                        } else if (sensorHandle == HandleIndex::MAGN_HANDLE) {
-                            mSensors[sensorIndex]->transformData(magnBuffer);
-                        }
+                        parseBuffer(rawBuffer, readBuffer, sensorHandle);
+                        mSensors[sensorIndex]->transformData(readBuffer);
                         mCondVarBufferReady.notify_one();
                     }
                 }
             }
         } else {
-            ALOGE("Failed to read data from Accel&Magn buffer file");
-            ALOGE("Expected %lu bytes, actual %d", sizeof(IIOBufferAccelMagn), readBytes);
+            ALOGE("Failed to read data from %s buffer file", mSensorGroups[groupIndex].name.c_str());
+            ALOGE("Expected %d bytes, actual %d", mSensorGroups[groupIndex].bufSize, readBytes);
             if(++retryCount > maxReadRetries)
                 mTerminatePollThreads = true;
         }
@@ -128,18 +123,12 @@ void Sensors::pollIIOAccelMagnBuffer()
 
 void Sensors::startPollThreads()
 {
-    /* TODO: unify this and remove hardcode */
-    if (mSensorGroups[0].fd >= 0) {
-        mSensorGroups[0].thread = std::make_shared<std::thread>(&Sensors::pollIIODeviceBuffer, this,
-                                                              mSensors[GYR].get());
-    } else {
-        ALOGE("Failed to start poll thread for Gyro");
-    }
-
-    if (mSensorGroups[1].fd >= 0) {
-        mSensorGroups[1].thread = std::make_shared<std::thread>(&Sensors::pollIIOAccelMagnBuffer, this);
-    } else {
-        ALOGE("Failed to start poll thread for Accel&&Magn");
+    for (size_t i = 0; i < mSensorGroups.size(); i++) {
+        if (mSensorGroups[i].fd >= 0) {
+            mSensorGroups[i].thread = std::make_shared<std::thread>(&Sensors::pollIIODeviceGroupBuffer, this, i);
+        } else {
+            ALOGE("Failed to start poll thread for %s", mSensorGroups[i].name.c_str());
+        }
     }
 }
 
@@ -147,11 +136,10 @@ void Sensors::stopPollThreads()
 {
     mTerminatePollThreads = true;
 
-    if (mSensorGroups[0].thread->joinable())
-        mSensorGroups[0].thread->join();
-
-    if (mSensorGroups[1].thread->joinable())
-        mSensorGroups[1].thread->join();
+    for (size_t i = 0; i < mSensorGroups.size(); i++) {
+        if (mSensorGroups[i].thread->joinable())
+            mSensorGroups[i].thread->join();
+    }
 }
 
 Return<void> Sensors::getSensorsList(getSensorsList_cb cb)
