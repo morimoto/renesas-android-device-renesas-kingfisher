@@ -46,13 +46,16 @@ on post-fs-data
     setprop vold.post_fs_data_done 1
 
 on early-boot
-    setprop wifi.interface wlan0
+    setprop wifi.interface wlan1
     setprop wifi.direct.interface p2p-dev-wlan0
     verity_update_state
 
     # Setup CAN interface
     exec -- /system/bin/ip link set can0 up type can bitrate 125000
     exec -- /system/bin/ip link set can1 up type can bitrate 125000
+
+    # Setup WiFi interface
+    exec -- /system/bin/iw dev wlan0 interface add wlan1 type managed
 
 on boot
     write /sys/power/wake_lock ws10_suspend_wa
@@ -64,9 +67,6 @@ on boot
     insmod /vendor/lib/modules/mmngr.ko
     insmod /vendor/lib/modules/mmngrbuf.ko
     insmod /vendor/lib/modules/uvcs_drv.ko
-    insmod /vendor/lib/modules/wlcore.ko
-    insmod /vendor/lib/modules/wlcore_sdio.ko
-    insmod /vendor/lib/modules/wl18xx.ko
     insmod /vendor/lib/modules/micrel.ko
     insmod /vendor/lib/modules/xtensa-hifi.ko
 
