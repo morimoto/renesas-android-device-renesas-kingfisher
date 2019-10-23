@@ -10,16 +10,27 @@
 #include <stdio.h>
 #include <errno.h>
 #include "IIO_sensor_descriptors.h"
+#include <android/hardware/sensors/2.0/types.h>
 
 using namespace std::chrono_literals;
 
 namespace android {
 namespace hardware {
 namespace sensors {
-namespace V1_0 {
+namespace V2_0 {
 namespace kingfisher {
 
+using ::android::hardware::sensors::V1_0::Event;
+using ::android::hardware::sensors::V1_0::OperationMode;
+using ::android::hardware::sensors::V1_0::RateLevel;
+using ::android::hardware::sensors::V1_0::Result;
+using ::android::hardware::sensors::V1_0::SharedMemInfo;
+using ::android::hardware::sensors::V2_0::SensorTimeout;
+using ::android::hardware::sensors::V2_0::WakeLockQueueFlagBits;
+
 Sensors::Sensors()
+    : mEventQueueFlag(nullptr),
+      mPollThreadsStarted(false)
 {
     mMode = OperationMode::NORMAL;
     mSensorDescriptors =
@@ -35,22 +46,22 @@ Sensors::Sensors()
     mSensors[SensorIndex::MAG] = std::make_unique<IIO_sensor>(mSensorDescriptors[SensorIndex::MAG]);
 
     activateAllGroups();
-
-    mSensors[ACC]->activate(true);
-    mSensors[GYR]->activate(true);
-    mSensors[MAG]->activate(true);
-
-    mEventsReady = false;
-
     /* File descriptors must be opened before starting threads */
     openFileDescriptors();
-    startPollThreads();
 }
 
 Sensors::~Sensors()
 {
     stopPollThreads();
     closeFileDescriptors();
+}
+
+void Sensors::deleteEventFlag()
+{
+    status_t status = EventFlag::deleteEventFlag(&mEventQueueFlag);
+    if (status != OK) {
+        ALOGI("Failed to delete event flag: %d", status);
+    }
 }
 
 /*
@@ -87,6 +98,8 @@ void Sensors::parseBuffer(const IIOCombinedBuffer& from, IIOBuffer& to, uint32_t
 void Sensors::pollIIODeviceGroupBuffer(uint32_t groupIndex)
 {
     int retryCount = 0;
+    int numEvents = 0;
+    std::vector<Event> outEvents;
 
     while(!mTerminatePollThreads.load()) {
         IIOCombinedBuffer rawBuffer;
@@ -107,10 +120,13 @@ void Sensors::pollIIODeviceGroupBuffer(uint32_t groupIndex)
                     if (mSensors[sensorIndex]->isActive()) {
                         parseBuffer(rawBuffer, readBuffer, sensorHandle);
                         mSensors[sensorIndex]->transformData(readBuffer);
-                        mCondVarBufferReady.notify_one();
+                        numEvents = mSensors[sensorIndex]->getReadyEventsCount(mMode);
+                        mSensors[sensorIndex]->getReadyEvents(outEvents, mMode, numEvents);
                     }
                 }
             }
+            postEvents(outEvents);
+            outEvents.clear();
         } else {
             ALOGE("Failed to read data from %s buffer file", mSensorGroups[groupIndex].name.c_str());
             ALOGE("Expected %d bytes, actual %d", mSensorGroups[groupIndex].bufSize, readBytes);
@@ -180,68 +196,54 @@ Return<Result> Sensors::activate(int32_t sensorHandle, bool enabled)
     return Result::OK;
 }
 
-Return<void> Sensors::poll(int32_t maxCount, poll_cb cb) {
-    std::vector<Event> outBuffer;
+/*
+ *  v2.0 required interface based on default implementation.
+ */
+Return<Result> Sensors::initialize(const ::android::hardware::MQDescriptorSync<Event>& eventQueueDescriptor,
+                                   const ::android::hardware::MQDescriptorSync<uint32_t>& wakeLockDescriptor,
+                                   const sp<ISensorsCallback>&)
+{
+    Result result = Result::OK;
 
+    mSensors[ACC]->activate(false);
+    mSensors[GYR]->activate(false);
+    mSensors[MAG]->activate(false);
+
+    mEventQueue = std::make_unique<EventMessageQueue>(eventQueueDescriptor, true /* resetPointers */);
+    deleteEventFlag();
+
+    if (EventFlag::createEventFlag(mEventQueue->getEventFlagWord(), &mEventQueueFlag) != OK) {
+        result = Result::BAD_VALUE;
+        return result;
+    }
     /*
-     * This approach is borrowed from default implementation.
-     * It's main intention to prevent undefined behaviour or dead-locks
-     * when more then one client call this function.
+     * None of our sensors are of WakeUp type so this queue will be empty all
+     * the time and no methods to work with it are required.
      */
-    std::unique_lock<std::mutex> lock(mPollLock, std::try_to_lock);
-    if (!lock.owns_lock()) {
-        ALOGE("Poll re-entry, killing myself!");
-        ::exit(-1);
+    mWakeLockQueue = std::make_unique<WakeLockMessageQueue>(wakeLockDescriptor, true);
+
+    if (!mEventQueue || !mWakeLockQueue || !mEventQueueFlag) {
+        result = Result::BAD_VALUE;
+        return result;
     }
 
-#ifdef POLL_DEBUG
-    ALOGD("Requested to get at most %d events for Android", maxCount);
-#endif
+    mSensors[ACC]->activate(true);
+    mSensors[GYR]->activate(true);
+    mSensors[MAG]->activate(true);
 
-    /* Check input values */
-    if (maxCount < 1) {
-        cb(Result::BAD_VALUE, hidl_vec<Event>(), hidl_vec<SensorInfo>());
-        return Void();
+    if (!mPollThreadsStarted) {
+        startPollThreads();
+        mPollThreadsStarted = true;
     }
 
-    /*
-     * do-while loop is needed to prevent state, when after event processing there
-     * is no valid event left in event buffers. It will cause the empty buffer returning.
-     */
-    do {
-        /* Check the data availability in the buffer, if not - wait for it */
-        std::unique_lock <std::mutex> condLock(mConditionMutex);
-        mCondVarBufferReady.wait(condLock, [this] {return isEventsReady();});
+    return result;
+}
 
-        int eventsLeft = maxCount;
-        OperationMode workMode = mMode;
-        for (int i = 0; i < SensorIndex::COUNT; i++) {
-#ifdef POLL_DEBUG
-            ALOGD("Left to poll %d events", eventsLeft);
-#endif
-            int polledEvents = mSensors[i]->getReadyEvents(outBuffer, workMode,
-                    eventsLeft);
-
-            eventsLeft -= polledEvents;
-            if (eventsLeft < 1)
-                break;
-        }
-
-    } while (outBuffer.empty());
-    lock.unlock();
-
-    hidl_vec < Event > returnBuffer;
-    returnBuffer.resize(outBuffer.size());
-    for (unsigned long i = 0; i < outBuffer.size(); i++)
-        returnBuffer[i] = outBuffer[i];
-
-#ifdef POLL_DEBUG
-    ALOGD("Reports %lu polled events", outBuffer.size());
-#endif
-
-    cb(Result::OK, returnBuffer, hidl_vec<SensorInfo>());
-
-    return Void();
+void Sensors::postEvents(const std::vector<Event>& events)
+{
+    std::lock_guard<std::mutex> lock(mWriteLock);
+    if (mEventQueue->write(events.data(), events.size()))
+        mEventQueueFlag->wake(static_cast<uint32_t>(EventQueueFlagBits::READ_AND_PROCESS));
 }
 
 Return<Result> Sensors::batch(int32_t sensorHandle, int64_t samplingPeriodNs, int64_t argMaxReportLatencyNs)
@@ -331,17 +333,6 @@ Return<void> Sensors::configDirectReport(int32_t, int32_t, RateLevel, configDire
     cb(Result::INVALID_OPERATION, 0);
 
     return Void();
-}
-
-bool Sensors::isEventsReady()
-{
-    bool result = false;
-
-    for (int i = 0; (i < SensorIndex::COUNT) && !result; i++) {
-        result = mSensors[i]->isBufferReady(mMode);
-    }
-
-    return result;
 }
 
 void Sensors::fillGroups()
@@ -442,7 +433,7 @@ void Sensors::closeFileDescriptors()
 }
 
 }  // namespace kingfisher
-}  // namespace V1_0
+}  // namespace V2_0
 }  // namespace sensors
 }  // namespace hardware
 }  // namespace android

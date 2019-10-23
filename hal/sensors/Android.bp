@@ -1,13 +1,13 @@
 //
-//  Copyright (C) 2017 GlobalLogic
+//  Copyright (C) 2017, 2019 GlobalLogic
 //
 
 cc_binary {
     relative_install_path: "hw",
     proprietary: true,
 
-    name: "android.hardware.sensors@1.0-service.kingfisher",
-    init_rc: ["android.hardware.sensors@1.0-service.kingfisher.rc"],
+    name: "android.hardware.sensors@2.0-service.kingfisher",
+    init_rc: ["android.hardware.sensors@2.0-service.kingfisher.rc"],
 
     cflags: [
         "-Wall",
@@ -23,11 +23,15 @@ cc_binary {
 
     shared_libs: [
         "liblog",
+        "libfmq",
+        "libcutils",
         "libbase",
+        "libpower",
         "libutils",
         "libbinder",
         "libhidlbase",
         "libhidltransport",
-        "android.hardware.sensors@1.0"
+        "android.hardware.sensors@1.0",
+        "android.hardware.sensors@2.0",
     ]
 }

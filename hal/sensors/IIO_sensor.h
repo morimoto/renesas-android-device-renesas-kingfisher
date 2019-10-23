@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_IIO_sensor_V1_0_KINGFISHER_H
-#define ANDROID_HARDWARE_IIO_sensor_V1_0_KINGFISHER_H
+#ifndef ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H
+#define ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H
 
 #include <android/hardware/sensors/1.0/ISensors.h>
 #include <queue>
@@ -13,8 +13,13 @@
 namespace android {
 namespace hardware {
 namespace sensors {
-namespace V1_0 {
+namespace V2_0 {
 namespace kingfisher {
+
+using ::android::hardware::sensors::V1_0::Event;
+using ::android::hardware::sensors::V1_0::OperationMode;
+using ::android::hardware::sensors::V1_0::Result;
+using ::android::hardware::sensors::V1_0::SensorInfo;
 
 class IIO_sensor
 {
@@ -28,7 +33,7 @@ class IIO_sensor
         void transformData(const IIOBuffer&);
         void injectEvent(const Event&);
         int getReadyEvents(std::vector<Event>&, OperationMode, int);
-
+        size_t getReadyEventsCount(OperationMode);
         bool isActive() const { return mIsEnabled.load(); }
         uint16_t getODR() const { return mCurrODR.load(); }
         uint32_t getTicks() const { return mTicks; }
@@ -36,20 +41,8 @@ class IIO_sensor
         void addTicks(uint32_t ticks) { mTicks += ticks; }
         void resetTicks() { mTicks = 0; }
 
-        bool isBufferReady(OperationMode mode)
-        {
-            /*
-             * This predicate is used for wakeup main poll function.
-             * We have two reasons for thread wakeup:
-             *      1) Flush is called
-             *      2) We have enough events in buffer for reporting
-             */
-            return (mFlushCounter.load() || (getReadyEventsCount(mode) >= mWatermark));
-        }
-
     private:
         void getAvailFreqTable();
-        void updateWatermark();
         void pushEvent(AtomicBuffer&, Event);
 
         Event createFlushEvent();
@@ -58,7 +51,6 @@ class IIO_sensor
         uint16_t getClosestOdr(uint16_t);
 
         void medianFilter(Event&);
-        size_t getReadyEventsCount(OperationMode);
 
         bool testSensorODR(uint16_t requestedODR)
         {
@@ -75,8 +67,6 @@ class IIO_sensor
         std::atomic<bool> mIsEnabled;
 
         uint64_t mMaxReportLatency;
-        size_t mWatermark;
-        std::atomic<int> mFlushCounter;
         uint32_t mTicks;
 
         /* Sensors events buffers */
@@ -89,9 +79,9 @@ class IIO_sensor
 };
 
 }  // namespace kingfisher
-}  // namespace V1_0
+}  // namespace V2_0
 }  // namespace sensors
 }  // namespace hardware
 }  // namespace android
 
-#endif//ANDROID_HARDWARE_IIO_sensor_V1_0_KINGFISHER_H
+#endif//ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H

@@ -16,8 +16,12 @@
 namespace android {
 namespace hardware {
 namespace sensors {
-namespace V1_0 {
+namespace V2_0 {
 namespace kingfisher {
+
+using ::android::hardware::Return;
+using ::android::hardware::sensors::V1_0::SensorStatus;
+using ::android::hardware::sensors::V1_0::MetaDataEventType;
 
 IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         mSensorDescriptor(sensorDescriptor),
@@ -48,7 +52,6 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
     ALOGD("%s: maxDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(), mSensorDescriptor.sensorInfo.maxDelay);
 
     mFilterBuffer = std::vector<Vector3D<double>>(filterBufferSize, mSensorDescriptor.initialValue);
-    updateWatermark();
 }
 
 void IIO_sensor::pushEvent(AtomicBuffer& buffer, Event e)
@@ -103,13 +106,6 @@ int IIO_sensor::getReadyEvents(std::vector<Event>& events, OperationMode mode, i
 
             for (int i = 0; i < eventCount; i++) {
                 event = mEventBuffer.eventBuffer.front();
-                /*
-                 * Polling thread can be waked up by flush event.
-                 * So after this we need to decrement flush counter.
-                 */
-                if (event.u.meta.what == MetaDataEventType::META_DATA_FLUSH_COMPLETE)
-                    mFlushCounter--;
-
                 events.push_back(event);
                 mEventBuffer.eventBuffer.pop();
             }
@@ -173,8 +169,6 @@ Return<Result> IIO_sensor::batch(int64_t argSamplingPeriodNs, int64_t maxReportL
 
     mCurrODR = requestedODR;
     mMaxReportLatency = maxReportLatency;
-    updateWatermark();
-
     ALOGD("Coming out from batch. samplPeriod = %lu, setup ODR for %s as %u Hz", argSamplingPeriodNs,
             mSensorDescriptor.sensorInfo.name.c_str(), mCurrODR.load());
     return Return<Result>(Result::OK);
@@ -183,7 +177,6 @@ Return<Result> IIO_sensor::batch(int64_t argSamplingPeriodNs, int64_t maxReportL
 Return<Result> IIO_sensor::flush()
 {
     if (mIsEnabled.load()) {
-        mFlushCounter++;
         pushEvent(mEventBuffer, createFlushEvent());
         return Return<Result>(Result::OK);
     } else {
@@ -331,29 +324,8 @@ uint16_t IIO_sensor::getClosestOdr(uint16_t requestedODR)
     return *it;
 }
 
-void IIO_sensor::updateWatermark()
-{
-    /*
-     * Watermark - count of event that will be send with one poll
-     * transaction. To calculate it we count number of event that
-     * will be stored in HAL FIFO while mMaxReportLatency ns by
-     * multiplying latency duration on current sensor data rate.
-     * It divides by 2 to guarantee that we will not miss report
-     * latency deadline.
-     */
-    size_t newWatermark = (mMaxReportLatency * mCurrODR) / (2 * 1e9);
-
-    if (newWatermark > AtomicBuffer::maxSize)
-        newWatermark = AtomicBuffer::maxSize;
-
-    if (!(newWatermark && mMaxReportLatency))
-        newWatermark = 1;
-
-    mWatermark = newWatermark;
-}
-
 }  // namespace kingfisher
-}  // namespace V1_0
+}  // namespace V2_0
 }  // namespace sensors
 }  // namespace hardware
 }  // namespace android

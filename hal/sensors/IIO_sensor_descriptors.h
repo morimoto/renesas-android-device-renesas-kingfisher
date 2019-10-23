@@ -10,8 +10,12 @@
 namespace android {
 namespace hardware {
 namespace sensors {
-namespace V1_0 {
+namespace V2_0 {
 namespace kingfisher {
+
+using ::android::hardware::sensors::V1_0::SensorInfo;
+using ::android::hardware::sensors::V1_0::SensorType;
+using ::android::hardware::sensors::V1_0::SensorFlagBits;
 
 const std::string VENDOR = "STMicroelectronics";
 constexpr int VERSION = 1;
@@ -146,7 +150,7 @@ static IIOSensorDescriptor sensors_descriptors[] = {
 };
 
 }  // namespace kingfisher
-}  // namespace V1_0
+}  // namespace V2_0
 }  // namespace sensors
 }  // namespace hardware
 }  // namespace android

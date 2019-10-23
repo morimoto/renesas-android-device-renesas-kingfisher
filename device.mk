@@ -72,4 +72,4 @@ PRODUCT_COPY_FILES += \
 
 # Sensors HAL
 PRODUCT_PACKAGES += \
-    android.hardware.sensors@1.0-service.kingfisher
+    android.hardware.sensors@2.0-service.kingfisher

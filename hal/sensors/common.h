@@ -7,8 +7,10 @@
 namespace android {
 namespace hardware {
 namespace sensors {
-namespace V1_0 {
+namespace V2_0 {
 namespace kingfisher {
+
+using ::android::hardware::sensors::V1_0::Event;
 
 template <class Type>
 struct Vector3D
@@ -103,7 +105,7 @@ static inline bool fileWriteInt(const std::string& filepath, int value)
 }
 
 }  // namespace kingfisher
-}  // namespace V1_0
+}  // namespace V2_0
 }  // namespace sensors
 }  // namespace hardware
 }  // namespace android

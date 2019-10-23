@@ -3,14 +3,14 @@
 #include <android-base/logging.h>
 #include <binder/ProcessState.h>
 #include <hidl/HidlTransportSupport.h>
-#include <android/hardware/sensors/1.0/ISensors.h>
+#include <android/hardware/sensors/2.0/ISensors.h>
 
 #include "Sensors.h"
 
 static constexpr size_t num_threads = 2;
 
 using namespace android::hardware;
-using namespace android::hardware::sensors::V1_0;
+using namespace android::hardware::sensors::V2_0;
 
 int main(int, char **)
 {
