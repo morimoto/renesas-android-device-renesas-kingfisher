@@ -40,6 +40,9 @@ class IIO_sensor
         SensorInfo getSensorInfo() const { return mSensorDescriptor.sensorInfo; }
         void addTicks(uint32_t ticks) { mTicks += ticks; }
         void resetTicks() { mTicks = 0; }
+        void sendAdditionalData();
+        float findBestResolution() const;
+        void setResolution(float resolution);
 
     private:
         void getAvailFreqTable();

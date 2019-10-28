@@ -12,6 +12,9 @@
 #include <linux/input.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <hidl/HidlSupport.h>
+#include <cstdlib>
+
 
 namespace android {
 namespace hardware {
@@ -22,6 +25,8 @@ namespace kingfisher {
 using ::android::hardware::Return;
 using ::android::hardware::sensors::V1_0::SensorStatus;
 using ::android::hardware::sensors::V1_0::MetaDataEventType;
+using ::android::hardware::sensors::V1_0::AdditionalInfoType;
+using ::android::hardware::sensors::V1_0::AdditionalInfo;
 
 IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         mSensorDescriptor(sensorDescriptor),
@@ -34,6 +39,11 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
     if (mAvaliableODR.empty()) {
         ALOGE("Failed to get avaliable ODR table from sysfs, using only default ODR (%u)", mCurrODR.load());
         mAvaliableODR.push_back(mSensorDescriptor.defaultODR);
+    }
+
+    const float resolution = findBestResolution();
+    if (resolution != 0) {
+        setResolution(resolution);
     }
 
     mSensorDescriptor.sensorInfo.minDelay = 1e6 / ( *(std::max_element(
@@ -52,6 +62,29 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
     ALOGD("%s: maxDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(), mSensorDescriptor.sensorInfo.maxDelay);
 
     mFilterBuffer = std::vector<Vector3D<double>>(filterBufferSize, mSensorDescriptor.initialValue);
+}
+
+float IIO_sensor::findBestResolution() const
+{
+    if(mSensorDescriptor.resolutions.find(mSensorDescriptor.sensorInfo.maxRange) ==
+            mSensorDescriptor.resolutions.end()){
+        ALOGE("Can't find correct resolution for %s",mSensorDescriptor.sensorInfo.name.c_str());
+        return 0;
+    }
+    return mSensorDescriptor.resolutions.at(mSensorDescriptor.sensorInfo.maxRange);
+}
+
+void IIO_sensor::setResolution(float resolution)
+{
+    ALOGI("Setting %s resolution to %f",mSensorDescriptor.sensorInfo.name.c_str(), resolution);
+    mSensorDescriptor.sensorInfo.resolution = resolution;
+    std::ofstream file(mSensorDescriptor.scaleFileName);
+    if(!file.is_open()){
+        ALOGW("Failed to write %s",mSensorDescriptor.scaleFileName.c_str());
+        return;
+    }
+    file << resolution;
+    file.close();
 }
 
 void IIO_sensor::pushEvent(AtomicBuffer& buffer, Event e)
@@ -141,7 +174,10 @@ Return<Result> IIO_sensor::activate(bool enable)
         std::unique_lock<std::mutex> injectLock(mInjectEventBuffer.mutex);
         mInjectEventBuffer.eventBuffer = std::queue<Event>();
         injectLock.unlock();
+    } else {
+        sendAdditionalData();
     }
+
     ALOGD("%s %s", enable ? "Activating" : "Deactivating", mSensorDescriptor.sensorInfo.name.c_str());
     mIsEnabled = enable;
     return Return<Result>(Result::OK);
@@ -178,6 +214,7 @@ Return<Result> IIO_sensor::flush()
 {
     if (mIsEnabled.load()) {
         pushEvent(mEventBuffer, createFlushEvent());
+        sendAdditionalData();
         return Return<Result>(Result::OK);
     } else {
         return Return<Result>(Result::BAD_VALUE);
@@ -250,6 +287,28 @@ uint64_t IIO_sensor::timestampTransform(uint64_t timestamp)
 
     return (timestamp - fromEpoch);
 
+}
+
+void IIO_sensor::sendAdditionalData()
+{
+    Event event;
+    event.sensorType = SensorType::ADDITIONAL_INFO;
+    event.sensorHandle = mSensorDescriptor.sensorInfo.sensorHandle;
+    event.timestamp = ::android::elapsedRealtimeNano();
+    AdditionalInfo inf;
+    inf.type = AdditionalInfoType::AINFO_BEGIN;
+    inf.serial = 0;
+    event.u.additional = inf;
+    pushEvent(mEventBuffer,event);
+
+    event.u.additional.type = AdditionalInfoType::AINFO_SENSOR_PLACEMENT;
+    memcpy(&event.u.additional.u, &mSensorDescriptor.sensorPosition, sizeof(mSensorDescriptor.sensorPosition));
+    event.timestamp = ::android::elapsedRealtimeNano();
+    pushEvent(mEventBuffer,event);
+
+    event.u.additional.type = AdditionalInfoType::AINFO_END;
+    event.timestamp = ::android::elapsedRealtimeNano();
+    pushEvent(mEventBuffer,event);
 }
 
 Event IIO_sensor::createFlushEvent()

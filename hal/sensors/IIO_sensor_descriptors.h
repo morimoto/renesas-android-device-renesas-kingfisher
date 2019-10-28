@@ -20,30 +20,40 @@ using ::android::hardware::sensors::V1_0::SensorFlagBits;
 const std::string VENDOR = "STMicroelectronics";
 constexpr int VERSION = 1;
 constexpr uint32_t FLAGS = SensorFlagBits::CONTINUOUS_MODE |
-                           SensorFlagBits::DATA_INJECTION;
+                           SensorFlagBits::DATA_INJECTION  |
+                           SensorFlagBits::ADDITIONAL_INFO;
 
 constexpr double G_FORCE = 9.80665;
-// Accelerometer works in 2g mode
-constexpr double ACCELL_RANGE = 2.0 * G_FORCE;
+// Accelerometer works in 39.20 m/s^2 mode
+constexpr double ACCELL_RANGE = G_FORCE * 4;
 
 constexpr double DEG2RAD = M_PI / 180.0;
-// Gyroscope works in 245 dps mode
-constexpr double GYRO_RANGE = 245.0 * DEG2RAD;
+// Gyroscope works in 2000 dps mode
+constexpr double GYRO_RANGE = 2000 * DEG2RAD;
 
 // Is used to convert [Gauss] to [micro Tesla].
 constexpr double GAUSS2UTESLA = 100.0;
-// Magnetometer works in 2 gauss mode
-constexpr double MAGN_RANGE =  2.0 * GAUSS2UTESLA;
+// Magnetometer works in 16 gauss mode
+constexpr double MAGN_RANGE =  16.0 * GAUSS2UTESLA;
+//Default sensor position
+//TODO: Implement a way to dynamicly load positions at runtime
+//Unit matrix for rotation and zero position vector
+#define DEFAULT_POSITION {1, 0, 0,  0, \
+                          0, 1, 0,  0, \
+                          0, 0, 1,  0}
 
 struct IIOSensorDescriptor
 {
     SensorInfo sensorInfo;
     std::string availFreqFileName;
+    std::string scaleFileName;
     std::string sensorGroupName = "Unknown";
+    std::map<float,float> resolutions;
     uint16_t defaultODR;
     uint16_t minODR;
     uint16_t maxODR;
     Vector3D<double> initialValue;
+    float sensorPosition[12];
 };
 
 struct SensorsGroupDescriptor
@@ -94,12 +104,21 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
+        .resolutions = { //Datasheet values (page 13)
+            { G_FORCE * 4,  0.00061 },
+            { G_FORCE * 8,  0.00122 },
+            { G_FORCE * 12, 0.00183 },
+            { G_FORCE * 16, 0.00244 },
+            { G_FORCE * 24, 0.00732 },
+        },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device0/in_accel_sampling_frequency_available",
+        .scaleFileName = "/sys/bus/iio/devices/iio:device0/in_accel_scale",
         .sensorGroupName = "AccMagnSensorsGroup",
         .defaultODR = 25,
         .minODR = 25,
         .maxODR = 100,
         .initialValue = {0.0, 0.0, G_FORCE},
+        .sensorPosition = DEFAULT_POSITION
     },
     [SensorIndex::MAG] = {
         .sensorInfo = {
@@ -117,12 +136,20 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
+        .resolutions = {
+            { 4  * GAUSS2UTESLA, 0.008 },
+            { 8  * GAUSS2UTESLA, 0.016 },
+            { 16 * GAUSS2UTESLA, 0.032 },
+            { 24 * GAUSS2UTESLA, 0.048 },
+    },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device0/in_magn_sampling_frequency_available",
+        .scaleFileName = "/sys/bus/iio/devices/iio:device0/in_magn_scale",
         .sensorGroupName = "AccMagnSensorsGroup",
         .defaultODR = 25,
         .minODR = 25,
         .maxODR = 100,
         .initialValue = {0.0, 0.0, 0.0},
+        .sensorPosition = DEFAULT_POSITION
     },
     [SensorIndex::GYR] = {
         .sensorInfo = {
@@ -133,19 +160,26 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .type                    = SensorType::GYROSCOPE,
             .typeAsString            = "android.sensor.gyroscope",
             .maxRange                = GYRO_RANGE,
-            .resolution              = 0.0000305433,    // This sensor has a lot of noises, calculated for correct norm
+            .resolution              = 0.0000875,        // Datasheet value
             .power                   = 6.1,             // 6.1 mA in normal mode, 2.0 mA in sleep mode and 6 uA in power-down.
             .fifoReservedEventCount  = AtomicBuffer::maxSize,
             .fifoMaxEventCount       = AtomicBuffer::maxSize,
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
+        .resolutions = {
+            { 245  * DEG2RAD, 0.0000875 },
+            { 500  * DEG2RAD, 0.00017500 },
+            { 2000 * DEG2RAD, 0.00070000 },
+        },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_sampling_frequency_available",
+        .scaleFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_scale",
         .sensorGroupName = "GyroSensorsGroup",
         .defaultODR = 95,
         .minODR = 95,
         .maxODR = 380,
         .initialValue = {0.0, 0.0, 0.0},
+        .sensorPosition = DEFAULT_POSITION
     },
 };
 
