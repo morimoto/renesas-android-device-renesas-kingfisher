@@ -54,10 +54,14 @@ PRODUCT_PACKAGES += \
 
 # External camera
 ifeq ($(USE_CAMERA_V4L2_KINGFISHER_HAL),true)
+PRODUCT_PRODUCT_PROPERTIES += \
+    config.disable_cameraservice=false
+
 PRODUCT_PACKAGES += camera.v4l2.kingfisher
 PRODUCT_PROPERTY_OVERRIDES += ro.hardware.camera=v4l2.kingfisher
 
 PRODUCT_PACKAGES += \
+    cameraserver \
     android.hardware.camera.provider@2.4-service.kingfisher \
     android.hardware.camera.provider@2.4-external-service.kingfisher
 
