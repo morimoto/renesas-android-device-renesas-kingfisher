@@ -24,7 +24,7 @@ BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_wl18xx
 BOARD_HOSTAPD_PRIVATE_LIB        := lib_driver_cmd_wl18xx
 WIFI_HAL_INTERFACE_COMBINATIONS  := {{{STA, AP}, 1}, {{P2P, NAN}, 1}},
 WIFI_HAL_INTERFACE_COMBINATIONS  += {{{STA}, 1}, {{AP}, 1}}
-
+BOARD_WLAN_DEVICE := ti
 # Kernel build rules
 TARGET_KERNEL_CONFIG := android_kingfisher_defconfig
 

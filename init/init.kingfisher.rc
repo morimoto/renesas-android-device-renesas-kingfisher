@@ -78,8 +78,6 @@ on boot
     insmod /vendor/lib/modules/xtensa-hifi.ko
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
-        -iwlan0 -Dnl80211 \
-        -c/vendor/etc/wifi/wpa_supplicant.conf \
         -O/data/vendor/wifi/wpa/sockets -g@android:wpa_wlan0
     interface android.hardware.wifi.supplicant@1.0::ISupplicant default
     interface android.hardware.wifi.supplicant@1.1::ISupplicant default
