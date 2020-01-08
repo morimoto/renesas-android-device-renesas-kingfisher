@@ -66,6 +66,7 @@ PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-external-service.kingfisher
 
 PRODUCT_COPY_FILES += \
+    device/renesas/kingfisher/init/init.kingfisher.camera.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.kingfisher.camera.rc \
     frameworks/native/data/etc/android.hardware.camera.external.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.external.xml \
     vendor/renesas/hal/camera/external_camera_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/external_camera_config.xml
 endif # External camera
