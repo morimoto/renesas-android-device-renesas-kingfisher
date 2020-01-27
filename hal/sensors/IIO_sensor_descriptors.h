@@ -28,8 +28,8 @@ constexpr double G_FORCE = 9.80665;
 constexpr double ACCELL_RANGE = G_FORCE * 4;
 
 constexpr double DEG2RAD = M_PI / 180.0;
-// Gyroscope works in 2000 dps mode
-constexpr double GYRO_RANGE = 2000 * DEG2RAD;
+// Gyroscope works in 4000 dps mode
+constexpr double GYRO_RANGE = 4000 * DEG2RAD;
 
 // Is used to convert [Gauss] to [micro Tesla].
 constexpr double GAUSS2UTESLA = 100.0;
@@ -104,7 +104,9 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
-        .resolutions = { //Datasheet values (page 13)
+        // Datasheet values (page 13) multiplied by 2
+        // to convert amplitude to range
+        .resolutions = {
             { G_FORCE * 4,  0.00061 },
             { G_FORCE * 8,  0.00122 },
             { G_FORCE * 12, 0.00183 },
@@ -136,6 +138,8 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
+        // Datasheet values (page 13) multiplied by 2
+        // to convert amplitude to range
         .resolutions = {
             { 4  * GAUSS2UTESLA, 0.008 },
             { 8  * GAUSS2UTESLA, 0.016 },
@@ -167,10 +171,12 @@ static IIOSensorDescriptor sensors_descriptors[] = {
             .requiredPermission      = "",
             .flags                   = FLAGS,
         },
+        // Datasheet values (page 13) multiplied by 2
+        // to convert amplitude to range
         .resolutions = {
-            { 245  * DEG2RAD, 0.0000875 },
-            { 500  * DEG2RAD, 0.00017500 },
-            { 2000 * DEG2RAD, 0.00070000 },
+            { 490  * DEG2RAD, 0.0000875 },
+            { 1000 * DEG2RAD, 0.00017500 },
+            { 4000 * DEG2RAD, 0.00070000 },
         },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_sampling_frequency_available",
         .scaleFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_scale",
