@@ -41,8 +41,8 @@ class IIO_sensor
         void addTicks(uint32_t ticks) { mTicks += ticks; }
         void resetTicks() { mTicks = 0; }
         void sendAdditionalData();
-        float findBestResolution() const;
-        void setResolution(float resolution);
+        std::pair<float, float> findBestResolution() const;
+        void setResolution(std::pair<float, float> resolution);
 
     private:
         void getAvailFreqTable();

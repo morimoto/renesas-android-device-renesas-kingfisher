@@ -48,7 +48,8 @@ struct IIOSensorDescriptor
     std::string availFreqFileName;
     std::string scaleFileName;
     std::string sensorGroupName = "Unknown";
-    std::map<float,float> resolutions;
+    //map[Range] = {sysfs resolution, resolution for framework}
+    std::map<float, std::pair<float, float>> resolutions;
     uint16_t defaultODR;
     uint16_t minODR;
     uint16_t maxODR;
@@ -107,11 +108,11 @@ static IIOSensorDescriptor sensors_descriptors[] = {
         // Datasheet values (page 13) multiplied by 2
         // to convert amplitude to range
         .resolutions = {
-            { G_FORCE * 4,  0.00061 },
-            { G_FORCE * 8,  0.00122 },
-            { G_FORCE * 12, 0.00183 },
-            { G_FORCE * 16, 0.00244 },
-            { G_FORCE * 24, 0.00732 },
+            { G_FORCE * 4,  {0.00061, 0.00061}},
+            { G_FORCE * 8,  {0.00122, 0.00122}},
+            { G_FORCE * 12, {0.00183, 0.00183}},
+            { G_FORCE * 16, {0.00244, 0.00244}},
+            { G_FORCE * 24, {0.00732, 0.00732}},
         },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device0/in_accel_sampling_frequency_available",
         .scaleFileName = "/sys/bus/iio/devices/iio:device0/in_accel_scale",
@@ -141,10 +142,10 @@ static IIOSensorDescriptor sensors_descriptors[] = {
         // Datasheet values (page 13) multiplied by 2
         // to convert amplitude to range
         .resolutions = {
-            { 4  * GAUSS2UTESLA, 0.008 },
-            { 8  * GAUSS2UTESLA, 0.016 },
-            { 16 * GAUSS2UTESLA, 0.032 },
-            { 24 * GAUSS2UTESLA, 0.048 },
+            { 4  * GAUSS2UTESLA, {0.00008, 0.008}},
+            { 8  * GAUSS2UTESLA, {0.00016, 0.016}},
+            { 16 * GAUSS2UTESLA, {0.00032, 0.032}},
+            { 24 * GAUSS2UTESLA, {0.00048, 0.048}},
     },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device0/in_magn_sampling_frequency_available",
         .scaleFileName = "/sys/bus/iio/devices/iio:device0/in_magn_scale",
@@ -174,9 +175,9 @@ static IIOSensorDescriptor sensors_descriptors[] = {
         // Datasheet values (page 13) multiplied by 2
         // to convert amplitude to range
         .resolutions = {
-            { 490  * DEG2RAD, 0.0000875 },
-            { 1000 * DEG2RAD, 0.00017500 },
-            { 4000 * DEG2RAD, 0.00070000 },
+            { 490  * DEG2RAD, {0.0000875, 0.0000875}},
+            { 1000 * DEG2RAD, {0.000175,  0.000175 }},
+            { 4000 * DEG2RAD, {0.0007,    0.0007   }},
         },
         .availFreqFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_sampling_frequency_available",
         .scaleFileName = "/sys/bus/iio/devices/iio:device1/in_anglvel_scale",

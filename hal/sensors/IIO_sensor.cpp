@@ -1,6 +1,7 @@
 #define LOG_TAG "SensorsHAL::IIO_Sensor"
 
 #include "IIO_sensor.h"
+#include "IIO_sensor_descriptors.h"
 #include "Sensors.h"
 
 #include <android-base/logging.h>
@@ -41,8 +42,8 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         mAvaliableODR.push_back(mSensorDescriptor.defaultODR);
     }
 
-    const float resolution = findBestResolution();
-    if (resolution != 0) {
+    const std::pair<float, float> resolution = findBestResolution();
+    if (resolution.first != 0) {
         setResolution(resolution);
     }
 
@@ -64,27 +65,27 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
     mFilterBuffer = std::vector<Vector3D<double>>(filterBufferSize, mSensorDescriptor.initialValue);
 }
 
-float IIO_sensor::findBestResolution() const
+std::pair<float, float> IIO_sensor::findBestResolution() const
 {
     if(mSensorDescriptor.resolutions.find(mSensorDescriptor.sensorInfo.maxRange) ==
             mSensorDescriptor.resolutions.end()){
         ALOGE("Can't find correct resolution for %s",mSensorDescriptor.sensorInfo.name.c_str());
-        return 0;
+        return std::pair<float, float>(0, 0);
     }
     return mSensorDescriptor.resolutions.at(mSensorDescriptor.sensorInfo.maxRange);
 }
 
-void IIO_sensor::setResolution(float resolution)
+void IIO_sensor::setResolution(std::pair<float, float> resolution)
 {
-    ALOGI("Setting %s resolution to %f",mSensorDescriptor.sensorInfo.name.c_str(), resolution);
-    mSensorDescriptor.sensorInfo.resolution = resolution;
+    ALOGI("Setting %s resolution to %f",mSensorDescriptor.sensorInfo.name.c_str(), resolution.first);
     std::ofstream file(mSensorDescriptor.scaleFileName);
     if(!file.is_open()){
         ALOGW("Failed to write %s",mSensorDescriptor.scaleFileName.c_str());
         return;
     }
-    file << resolution;
+    file << resolution.first;
     file.close();
+    mSensorDescriptor.sensorInfo.resolution = resolution.second;
 }
 
 void IIO_sensor::pushEvent(AtomicBuffer& buffer, Event e)
