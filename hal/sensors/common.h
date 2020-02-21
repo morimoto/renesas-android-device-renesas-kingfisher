@@ -3,6 +3,7 @@
 
 #include <log/log.h>
 #include <limits>
+#include <queue>
 
 namespace android {
 namespace hardware {
@@ -11,6 +12,9 @@ namespace V2_0 {
 namespace kingfisher {
 
 using ::android::hardware::sensors::V1_0::Event;
+
+constexpr double NSEC = 1e9;
+constexpr double USEC = 1e6;
 
 template <class Type>
 struct Vector3D
@@ -30,8 +34,8 @@ struct IIOBufferAccelMagn
 {
     Vector3D<int16_t> accel;
     Vector3D<int16_t> magn;
-    short accell_data_align;
-    short magn_data_align;
+    short accellDataAlign;
+    short magnDataAlign;
     uint64_t timestamp;
 };
 
@@ -53,6 +57,12 @@ enum HandleIndex
     ACC_HANDLE = 1,
     GYRO_HANDLE,
     MAGN_HANDLE,
+    GRAV_HANDLE,
+    ROTV_HANDLE,
+    GEOMAG_HANDLE,
+    LINACC_HANDLE,
+    GAME_HANDLE,
+    ORIENT_HANDLE,
     HANDLE_COUNT, //must be the last
 };
 
@@ -65,7 +75,20 @@ enum SensorIndex
     ACC = 0,
     GYR,
     MAG,
+    GRAV,
+    ROTV,
+    GEOMAG,
+    LINACC,
+    GAME,
+    ORIENT,
     COUNT,
+};
+
+enum FUSION_MODE {
+    FUSION_9AXIS, // use accel gyro mag
+    FUSION_NOMAG, // use accel gyro (game rotation, gravity)
+    FUSION_NOGYRO, // use accel mag (geomag rotation)
+    NUM_FUSION_MODE
 };
 
 /* Converts sampling period in ns to out data rate in Hz (f = 1/T) */
@@ -75,7 +98,7 @@ static inline uint16_t samplingPeriodNsToODR(int64_t samplingPeriodNs)
         return std::numeric_limits<uint16_t>::max();
     }
 
-    return (1e9 / samplingPeriodNs);
+    return (NSEC / samplingPeriodNs);
 }
 
 /*

@@ -1,5 +1,5 @@
-#ifndef ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H
-#define ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H
+#ifndef ANDROID_HARDWARE_IIO_SENSOR_V2_0_KINGFISHER_H
+#define ANDROID_HARDWARE_IIO_SENSOR_V2_0_KINGFISHER_H
 
 #include <android/hardware/sensors/1.0/ISensors.h>
 #include <queue>
@@ -7,7 +7,8 @@
 #include <fstream>
 #include <string>
 
-#include "IIO_sensor_descriptors.h"
+#include "SensorDescriptors.h"
+#include "BaseSensor.h"
 #include "common.h"
 
 namespace android {
@@ -21,34 +22,32 @@ using ::android::hardware::sensors::V1_0::OperationMode;
 using ::android::hardware::sensors::V1_0::Result;
 using ::android::hardware::sensors::V1_0::SensorInfo;
 
-class IIO_sensor
+class IIOSensor : public BaseSensor
 {
     public:
-        IIO_sensor(const IIOSensorDescriptor &);
-        virtual ~IIO_sensor() { };
+        explicit IIOSensor(const SensorDescriptor &);
+        virtual ~IIOSensor() { };
 
-        Return<Result> activate(bool);
-        Return<Result> batch(int64_t, int64_t);
-        Return<Result> flush();
-        void transformData(const IIOBuffer&);
-        void injectEvent(const Event&);
-        int getReadyEvents(std::vector<Event>&, OperationMode, int);
-        size_t getReadyEventsCount(OperationMode);
-        bool isActive() const { return mIsEnabled.load(); }
-        uint16_t getODR() const { return mCurrODR.load(); }
-        uint32_t getTicks() const { return mTicks; }
-        SensorInfo getSensorInfo() const { return mSensorDescriptor.sensorInfo; }
-        void addTicks(uint32_t ticks) { mTicks += ticks; }
-        void resetTicks() { mTicks = 0; }
+        Return<Result> activate(bool) override;
+        Return<Result> batch(int64_t, int64_t) override;
+        Return<Result> flush() override;
+        void transformData(const IIOBuffer&) override;
+
+        void injectEvent(const Event&) override;
+        int getReadyEvents(std::vector<Event>&, OperationMode) override;
+
         void sendAdditionalData();
         std::pair<float, float> findBestResolution() const;
         void setResolution(std::pair<float, float> resolution);
 
-    private:
+        void addVirtualListener(uint32_t) override;
+        void removeVirtualListener(uint32_t) override;
+        bool hasActiveListeners() const override;
+
+    protected:
         void getAvailFreqTable();
         void pushEvent(AtomicBuffer&, Event);
 
-        Event createFlushEvent();
         Event chunkTransform(const IIOBuffer&);
         uint64_t timestampTransform(uint64_t);
         uint16_t getClosestOdr(uint16_t);
@@ -61,24 +60,17 @@ class IIO_sensor
                             requestedODR) != mAvaliableODR.end());
         }
 
-        IIOSensorDescriptor mSensorDescriptor;
         std::vector<uint16_t> mAvaliableODR;
 
         uint32_t mCounter;
-        /*This can be used from multiple threads*/
-        std::atomic<uint16_t> mCurrODR;
-        std::atomic<bool> mIsEnabled;
-
-        uint64_t mMaxReportLatency;
-        uint32_t mTicks;
 
         /* Sensors events buffers */
         AtomicBuffer mEventBuffer;
-        AtomicBuffer mInjectEventBuffer;
 
         /* Buffer for filters */
         std::vector<Vector3D<double>> mFilterBuffer;
         static constexpr size_t filterBufferSize = 9;
+        std::vector<uint32_t> mListenerHandlers;
 };
 
 }  // namespace kingfisher
@@ -87,4 +79,4 @@ class IIO_sensor
 }  // namespace hardware
 }  // namespace android
 
-#endif//ANDROID_HARDWARE_IIO_sensor_V2_0_KINGFISHER_H
+#endif//ANDROID_HARDWARE_IIO_SENSOR_V2_0_KINGFISHER_H

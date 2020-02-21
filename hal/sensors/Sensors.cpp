@@ -9,8 +9,15 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
-#include "IIO_sensor_descriptors.h"
 #include <android/hardware/sensors/2.0/types.h>
+#include "SensorDescriptors.h"
+#include "VirtualSensor.h"
+#include "GravitySensor.h"
+#include "RotationVector.h"
+#include "GeoMagRotationVector.h"
+#include "LinearAccelerationSensor.h"
+#include "GameRotationSensor.h"
+#include "OrientationSensor.h"
 
 using namespace std::chrono_literals;
 
@@ -34,16 +41,35 @@ Sensors::Sensors()
 {
     mMode = OperationMode::NORMAL;
     mSensorDescriptors =
-        std::vector<IIOSensorDescriptor>(sensors_descriptors,
+        std::vector<SensorDescriptor>(sensors_descriptors,
         sensors_descriptors + (sizeof(sensors_descriptors) / sizeof(sensors_descriptors[0])));
-    mSensorGroups = sensor_group_descriptors;
+    mSensorGroups = sensorGroupDescriptors;
 
     fillGroups();
 
-    mSensors.resize(SensorIndex::COUNT);
-    mSensors[SensorIndex::ACC] = std::make_unique<IIO_sensor>(mSensorDescriptors[SensorIndex::ACC]);
-    mSensors[SensorIndex::GYR] = std::make_unique<IIO_sensor>(mSensorDescriptors[SensorIndex::GYR]);
-    mSensors[SensorIndex::MAG] = std::make_unique<IIO_sensor>(mSensorDescriptors[SensorIndex::MAG]);
+    /* Do not change the sensors push sequence! */
+    /* Firstly, initialize hardware sensors, then virtual */
+    mSensors.push_back(std::make_shared<IIOSensor>(mSensorDescriptors[SensorIndex::ACC]));
+    mSensors.push_back(std::make_shared<IIOSensor>(mSensorDescriptors[SensorIndex::GYR]));
+    mSensors.push_back(std::make_shared<IIOSensor>(mSensorDescriptors[SensorIndex::MAG]));
+    mFusionSensor.addHwSensors(mSensors);
+
+    mSensors.push_back(std::make_shared<GravitySensor>
+        (mSensorDescriptors[SensorIndex::GRAV], mFusionSensor));
+
+    mSensors.push_back(std::make_shared<RotationVector>
+        (mSensorDescriptors[SensorIndex::ROTV], mFusionSensor));
+
+    mSensors.push_back(std::make_shared<GeoMagRotationVector>
+        (mSensorDescriptors[SensorIndex::GEOMAG], mFusionSensor));
+
+    mSensors.push_back(std::make_shared<LinearAccelerationSensor>
+        (mSensorDescriptors[SensorIndex::LINACC], mFusionSensor));
+    mSensors.push_back(std::make_shared<GameRotationSensor>
+        (mSensorDescriptors[SensorIndex::GAME], mFusionSensor));
+
+    mSensors.push_back(std::make_shared<OrientationSensor>
+        (mSensorDescriptors[SensorIndex::ORIENT], mFusionSensor));
 
     activateAllGroups();
     /* File descriptors must be opened before starting threads */
@@ -92,18 +118,19 @@ void Sensors::parseBuffer(const IIOCombinedBuffer& from, IIOBuffer& to, uint32_t
 }
 
 /*
- * Generalized method to handle all sensors. Handles special case with LSM9DS0 - accelerometer
- * and magnetometer. They are placed at the same I2C address and have same chrdev in /dev.
+ * Generalized method to handle all sensors. Handles special case with LSM9DS0 -
+ * accelerometer and magnetometer. They are placed at the same I2C address and
+ * have same chrdev in /dev.
 */
 void Sensors::pollIIODeviceGroupBuffer(uint32_t groupIndex)
 {
     int retryCount = 0;
-    int numEvents = 0;
     std::vector<Event> outEvents;
 
     while(!mTerminatePollThreads.load()) {
         IIOCombinedBuffer rawBuffer;
-        int readBytes = ::read(mSensorGroups[groupIndex].fd, &rawBuffer, mSensorGroups[groupIndex].bufSize);
+        int readBytes = ::read(mSensorGroups[groupIndex].fd,
+            &rawBuffer, mSensorGroups[groupIndex].bufSize);
         if (readBytes == mSensorGroups[groupIndex].bufSize) {
             IIOBuffer readBuffer;
 
@@ -117,33 +144,121 @@ void Sensors::pollIIODeviceGroupBuffer(uint32_t groupIndex)
                 mSensors[sensorIndex]->addTicks(sensorODR);
                 if (mSensors[sensorIndex]->getTicks() >= maxODR) {
                     mSensors[sensorIndex]->resetTicks();
-                    if (mSensors[sensorIndex]->isActive()) {
+                    if (mSensors[sensorIndex]->isActive() ||
+                        mSensors[sensorIndex]->hasActiveListeners()) {
                         parseBuffer(rawBuffer, readBuffer, sensorHandle);
                         mSensors[sensorIndex]->transformData(readBuffer);
-                        numEvents = mSensors[sensorIndex]->getReadyEventsCount(mMode);
-                        mSensors[sensorIndex]->getReadyEvents(outEvents, mMode, numEvents);
+                        mSensors[sensorIndex]->getReadyEvents(outEvents, mMode);
+
+                        mFusionSensor.pushEvents(outEvents);
+                        setReadyFlag(mSensors[sensorIndex]->getSensorType());
+                        notifyListeners();
                     }
                 }
+                if (mSensors[sensorIndex]->isActive()) {
+                    postEvents(outEvents);
+                    outEvents.clear();
+                }
             }
-            postEvents(outEvents);
-            outEvents.clear();
         } else {
-            ALOGE("Failed to read data from %s buffer file", mSensorGroups[groupIndex].name.c_str());
-            ALOGE("Expected %d bytes, actual %d", mSensorGroups[groupIndex].bufSize, readBytes);
+            ALOGE("Failed to read data from %s buffer file",
+                mSensorGroups[groupIndex].name.c_str());
+            ALOGE("Expected %d bytes, actual %d",
+                mSensorGroups[groupIndex].bufSize, readBytes);
             if(++retryCount > maxReadRetries)
                 mTerminatePollThreads = true;
         }
     }
 }
 
+void Sensors::setReadyFlag(SensorType sensorType)
+{
+    if (sensorType == SensorType::ACCELEROMETER) {
+        mAccelEventReady = true;
+    } else if (sensorType == SensorType::MAGNETIC_FIELD) {
+        mMagnEventReady = true;
+    } else if (sensorType == SensorType::GYROSCOPE) {
+        mGyroEventReady = true;
+    }
+}
+
+void Sensors::resetReadyFlag(FUSION_MODE mode)
+{
+    mAccelEventReady = false;
+    if (mode == FUSION_9AXIS) {
+        mMagnEventReady = false;
+        mGyroEventReady = false;
+    } else if (mode == FUSION_NOMAG) {
+        mGyroEventReady = false;
+    } else if (mode == FUSION_NOGYRO) {
+        mMagnEventReady = false;
+    }
+}
+
+void Sensors::notifyListeners()
+{
+    bool isEventsProcessed = false;
+    if (!mAccelEventReady.load())
+        return;
+
+    for (size_t i = 0; i < mSensorGroups.size(); i++) {
+        if (!mSensorGroups[i].isVirtual) {
+            continue;
+        }
+
+        uint32_t sensorHandle = mSensorGroups[i].sensorHandles[0];
+        uint32_t sensorIndex = handleToIndex(sensorHandle);
+
+        if (mSensorGroups[i].mode == FUSION_9AXIS &&
+            mMagnEventReady.load() && mGyroEventReady.load()) {
+            mSensors[sensorIndex]->notifyEventsReady();
+            isEventsProcessed = true;
+        } else if (mSensorGroups[i].mode == FUSION_NOMAG &&
+            mGyroEventReady.load()) {
+            mSensors[sensorIndex]->notifyEventsReady();
+            isEventsProcessed = true;
+        } else if (mSensorGroups[i].mode == FUSION_NOGYRO &&
+            mMagnEventReady.load()) {
+            mSensors[sensorIndex]->notifyEventsReady();
+            isEventsProcessed = true;
+        }
+    }
+
+    if (isEventsProcessed) {
+        for (size_t i = 0; i < mSensorGroups.size(); i++) {
+            resetReadyFlag(mSensorGroups[i].mode);
+        }
+    }
+}
+
+void Sensors::pollVirtualDeviceGroupBuffer(uint32_t groupIndex)
+{
+    std::vector<Event> outEvents;
+
+    while(!mTerminatePollThreads.load()) {
+        for (size_t i = 0; i < mSensorGroups[groupIndex].sensorHandles.size(); i++) {
+
+            uint32_t sensorHandle = mSensorGroups[groupIndex].sensorHandles[i];
+            uint32_t sensorIndex = handleToIndex(sensorHandle);
+            mSensors[sensorIndex]->getReadyEvents(outEvents, mMode);
+        }
+
+        postEvents(outEvents);
+        outEvents.clear();
+    }
+}
 
 void Sensors::startPollThreads()
 {
     for (size_t i = 0; i < mSensorGroups.size(); i++) {
-        if (mSensorGroups[i].fd >= 0) {
-            mSensorGroups[i].thread = std::make_shared<std::thread>(&Sensors::pollIIODeviceGroupBuffer, this, i);
+        if (mSensorGroups[i].isVirtual) {
+            mSensorGroups[i].thread = std::make_shared<std::thread>(&Sensors::pollVirtualDeviceGroupBuffer, this, i);
         } else {
-            ALOGE("Failed to start poll thread for %s", mSensorGroups[i].name.c_str());
+            if (mSensorGroups[i].fd >= 0) {
+                mSensorGroups[i].thread = std::make_shared<std::thread>(&Sensors::pollIIODeviceGroupBuffer, this, i);
+            } else {
+                ALOGE("Failed to start poll thread for %s", mSensorGroups[i].name.c_str());
+            }
         }
     }
 }
@@ -205,9 +320,9 @@ Return<Result> Sensors::initialize(const ::android::hardware::MQDescriptorSync<E
 {
     Result result = Result::OK;
 
-    mSensors[ACC]->activate(false);
-    mSensors[GYR]->activate(false);
-    mSensors[MAG]->activate(false);
+    for(const auto& sensor: mSensors) {
+        sensor->activate(false);
+    }
 
     mEventQueue = std::make_unique<EventMessageQueue>(eventQueueDescriptor, true /* resetPointers */);
     deleteEventFlag();
@@ -227,11 +342,11 @@ Return<Result> Sensors::initialize(const ::android::hardware::MQDescriptorSync<E
         return result;
     }
 
-    mSensors[ACC]->activate(true);
-    mSensors[GYR]->activate(true);
-    mSensors[MAG]->activate(true);
+    for(const auto& sensor: mSensors) {
+        sensor->activate(true);
+    }
 
-    if (!mPollThreadsStarted) {
+    if (!mPollThreadsStarted.load()) {
         startPollThreads();
         mPollThreadsStarted = true;
     }
@@ -242,18 +357,14 @@ Return<Result> Sensors::initialize(const ::android::hardware::MQDescriptorSync<E
 void Sensors::postEvents(const std::vector<Event>& events)
 {
     std::lock_guard<std::mutex> lock(mWriteLock);
-    if (mEventQueue->write(events.data(), events.size()))
+    if (mEventQueue->write(events.data(), events.size())) {
         mEventQueueFlag->wake(static_cast<uint32_t>(EventQueueFlagBits::READ_AND_PROCESS));
+    }
 }
 
-Return<Result> Sensors::batch(int32_t sensorHandle, int64_t samplingPeriodNs, int64_t argMaxReportLatencyNs)
+
+Return<Result> Sensors::HWBatch(int32_t sensorHandle, int64_t samplingPeriodNs, int64_t argMaxReportLatencyNs)
 {
-    ALOGD("batch() - sampling period = %lu, ODR = %u, sensorHandle = %d, maxReportLatency = %ld",
-        samplingPeriodNs, samplingPeriodNsToODR(samplingPeriodNs), sensorHandle, argMaxReportLatencyNs);
-
-    if (!testHandle(sensorHandle))
-        return Return<Result>(Result::BAD_VALUE);
-
     Return<Result> res(Result::OK);
 
     uint16_t currMaxODR = getMaxODRFromGroup(getGroupIndexByHandle(sensorHandle));
@@ -271,6 +382,44 @@ Return<Result> Sensors::batch(int32_t sensorHandle, int64_t samplingPeriodNs, in
     }
 
     return res;
+
+}
+Return<Result> Sensors::virtualBatch(int32_t sensorHandle, int64_t samplingPeriodNs, int64_t argMaxReportLatencyNs)
+{
+    int index = getGroupIndexByHandle(sensorHandle);
+    Return<Result> res(Result::OK);
+    /* Enable or disable hardware sensors */
+    res = HWBatch(HandleIndex::ACC_HANDLE, samplingPeriodNs, argMaxReportLatencyNs);
+    if (res != Result::OK)
+        return res;
+    if (mSensorGroups[index].mode != FUSION_NOMAG) {
+        res = HWBatch(HandleIndex::MAGN_HANDLE, samplingPeriodNs, argMaxReportLatencyNs);
+        if (res != Result::OK)
+            return res;
+    }
+    if (mSensorGroups[index].mode != FUSION_NOGYRO) {
+        res = HWBatch(HandleIndex::GYRO_HANDLE, samplingPeriodNs, argMaxReportLatencyNs);
+        if (res != Result::OK)
+            return res;
+    }
+    return res;
+}
+
+Return<Result> Sensors::batch(int32_t sensorHandle, int64_t samplingPeriodNs, int64_t argMaxReportLatencyNs)
+{
+    ALOGD("batch() - sampling period = %lu, ODR = %u, sensorHandle = %d, maxReportLatency = %ld",
+        samplingPeriodNs, samplingPeriodNsToODR(samplingPeriodNs), sensorHandle, argMaxReportLatencyNs);
+
+    if (!testHandle(sensorHandle))
+        return Return<Result>(Result::BAD_VALUE);
+
+    int index = getGroupIndexByHandle(sensorHandle);
+    if (mSensorGroups[index].isVirtual) {
+        return virtualBatch(sensorHandle, samplingPeriodNs, argMaxReportLatencyNs);
+    } else {
+        return HWBatch(sensorHandle, samplingPeriodNs, argMaxReportLatencyNs);
+    }
+
 }
 
 Return<Result> Sensors::flush(int32_t sensorHandle)
@@ -341,18 +490,19 @@ void Sensors::fillGroups()
         for (size_t j = 0; j < mSensorGroups.size(); j++) {
             if (mSensorDescriptors[i].sensorGroupName == mSensorGroups[j].name) {
                 mSensorGroups[j].sensorHandles.push_back(mSensorDescriptors[i].sensorInfo.sensorHandle);
+                mSensorDescriptors[i].sensorGroup = std::make_shared<SensorsGroupDescriptor>(mSensorGroups[j]);
             }
         }
     }
 }
 
-size_t  Sensors::getGroupIndexByHandle(uint32_t handeleIndex)
+size_t Sensors::getGroupIndexByHandle(uint32_t handleIndex)
 {
     size_t idx;
 
     for (idx = 0; idx < mSensorGroups.size(); ++idx) {
         auto it = std::find(mSensorGroups[idx].sensorHandles.begin(),
-            mSensorGroups[idx].sensorHandles.end(), handeleIndex);
+            mSensorGroups[idx].sensorHandles.end(), handleIndex);
         if (it != mSensorGroups[idx].sensorHandles.end())
             return idx;
     }
@@ -364,7 +514,17 @@ void Sensors::activateGroup(bool enable, uint32_t index)
 {
     const int value = enable ? 1 : 0;
 
-    if(!fileWriteInt(mSensorGroups[index].bufferSwitchFileName, value)) {
+    if (mSensorGroups[index].isVirtual) {
+        /* Enable or disable hardware sensors */
+        activate(HandleIndex::ACC_HANDLE, enable);
+        if (mSensorGroups[index].mode != FUSION_NOMAG) {
+            activate(HandleIndex::MAGN_HANDLE, enable);
+        }
+
+        if (mSensorGroups[index].mode != FUSION_NOGYRO) {
+            activate(HandleIndex::GYRO_HANDLE, enable);
+        }
+    } else if (!fileWriteInt(mSensorGroups[index].bufferSwitchFileName, value)) {
         ALOGE("Failed to write to the %s", mSensorGroups[index].bufferSwitchFileName.c_str());
     }
 }
@@ -372,7 +532,8 @@ void Sensors::activateGroup(bool enable, uint32_t index)
 bool Sensors::isActiveGroup(uint32_t index)
 {
     for (size_t i = 0; i < mSensorGroups[index].sensorHandles.size(); ++i) {
-        if (mSensors[handleToIndex(mSensorGroups[index].sensorHandles[i])]->isActive()) {;
+        if (mSensors[handleToIndex(mSensorGroups[index].sensorHandles[i])]->isActive() ||
+            mSensors[handleToIndex(mSensorGroups[index].sensorHandles[i])]->hasActiveListeners()) {
             return true;
         }
     }
@@ -382,6 +543,9 @@ bool Sensors::isActiveGroup(uint32_t index)
 
 bool Sensors::setTriggerFreq(uint16_t requestedODR, uint32_t index)
 {
+    if (mSensorGroups[index].isVirtual)
+        return true;
+
     if(!fileWriteInt(mSensorGroups[index].triggerFileName, requestedODR)) {
         ALOGE("Failed to set ODR = %d Hz", requestedODR);
         return false;
@@ -428,8 +592,9 @@ void Sensors::openFileDescriptors()
 
 void Sensors::closeFileDescriptors()
 {
-    for (size_t i = 0; i < mSensorGroups.size(); i++)
+    for (size_t i = 0; i < mSensorGroups.size(); i++) {
         close(mSensorGroups[i].fd);
+    }
 }
 
 }  // namespace kingfisher

@@ -18,7 +18,16 @@ cc_binary {
     srcs: [
         "service.cpp",
         "Sensors.cpp",
-        "IIO_sensor.cpp"
+        "BaseSensor.cpp",
+        "IIOSensor.cpp",
+        "FusionSensor.cpp",
+        "VirtualSensor.cpp",
+        "GravitySensor.cpp",
+        "GeoMagRotationVector.cpp",
+        "RotationVector.cpp",
+        "LinearAccelerationSensor.cpp",
+        "GameRotationSensor.cpp",
+        "OrientationSensor.cpp"
     ],
 
     shared_libs: [

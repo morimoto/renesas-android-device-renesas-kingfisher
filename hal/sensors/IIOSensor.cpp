@@ -1,7 +1,7 @@
 #define LOG_TAG "SensorsHAL::IIO_Sensor"
 
-#include "IIO_sensor.h"
-#include "IIO_sensor_descriptors.h"
+#include "IIOSensor.h"
+#include "SensorDescriptors.h"
 #include "Sensors.h"
 
 #include <android-base/logging.h>
@@ -29,16 +29,15 @@ using ::android::hardware::sensors::V1_0::MetaDataEventType;
 using ::android::hardware::sensors::V1_0::AdditionalInfoType;
 using ::android::hardware::sensors::V1_0::AdditionalInfo;
 
-IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
-        mSensorDescriptor(sensorDescriptor),
-        mCounter(0),
-        mIsEnabled(false),
-        mMaxReportLatency(0)
+IIOSensor::IIOSensor(const SensorDescriptor &sensorDescriptor) :
+        BaseSensor(sensorDescriptor),
+        mCounter(0)
 {
     getAvailFreqTable();
 
     if (mAvaliableODR.empty()) {
-        ALOGE("Failed to get avaliable ODR table from sysfs, using only default ODR (%u)", mCurrODR.load());
+        ALOGE("Failed to get avaliable ODR table from sysfs, using only default ODR (%u)",
+            mCurrODR.load());
         mAvaliableODR.push_back(mSensorDescriptor.defaultODR);
     }
 
@@ -47,11 +46,11 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         setResolution(resolution);
     }
 
-    mSensorDescriptor.sensorInfo.minDelay = 1e6 / ( *(std::max_element(
+    mSensorDescriptor.sensorInfo.minDelay = USEC / ( *(std::max_element(
         std::begin(mAvaliableODR),
         std::end(mAvaliableODR))));
 
-    mSensorDescriptor.sensorInfo.maxDelay = 1e6 / ( *(std::min_element(
+    mSensorDescriptor.sensorInfo.maxDelay = USEC / ( *(std::min_element(
         std::begin(mAvaliableODR),
         std::end(mAvaliableODR))));
 
@@ -59,25 +58,30 @@ IIO_sensor::IIO_sensor(const IIOSensorDescriptor &sensorDescriptor):
         std::begin(mAvaliableODR),
         std::end(mAvaliableODR)));
 
-    ALOGD("%s: minDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(), mSensorDescriptor.sensorInfo.minDelay);
-    ALOGD("%s: maxDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(), mSensorDescriptor.sensorInfo.maxDelay);
+    ALOGD("%s: minDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(),
+        mSensorDescriptor.sensorInfo.minDelay);
+    ALOGD("%s: maxDelay = %d", mSensorDescriptor.sensorInfo.name.c_str(),
+        mSensorDescriptor.sensorInfo.maxDelay);
 
-    mFilterBuffer = std::vector<Vector3D<double>>(filterBufferSize, mSensorDescriptor.initialValue);
+    mFilterBuffer =
+        std::vector<Vector3D<double>>(filterBufferSize, mSensorDescriptor.initialValue);
 }
 
-std::pair<float, float> IIO_sensor::findBestResolution() const
+std::pair<float, float> IIOSensor::findBestResolution() const
 {
     if(mSensorDescriptor.resolutions.find(mSensorDescriptor.sensorInfo.maxRange) ==
             mSensorDescriptor.resolutions.end()){
-        ALOGE("Can't find correct resolution for %s",mSensorDescriptor.sensorInfo.name.c_str());
+        ALOGE("Can't find correct resolution for %s",
+            mSensorDescriptor.sensorInfo.name.c_str());
         return std::pair<float, float>(0, 0);
     }
     return mSensorDescriptor.resolutions.at(mSensorDescriptor.sensorInfo.maxRange);
 }
 
-void IIO_sensor::setResolution(std::pair<float, float> resolution)
+void IIOSensor::setResolution(std::pair<float, float> resolution)
 {
-    ALOGI("Setting %s resolution to %f",mSensorDescriptor.sensorInfo.name.c_str(), resolution.first);
+    ALOGI("Setting %s resolution to %f",
+        mSensorDescriptor.sensorInfo.name.c_str(), resolution.first);
     std::ofstream file(mSensorDescriptor.scaleFileName);
     if(!file.is_open()){
         ALOGW("Failed to write %s",mSensorDescriptor.scaleFileName.c_str());
@@ -88,8 +92,11 @@ void IIO_sensor::setResolution(std::pair<float, float> resolution)
     mSensorDescriptor.sensorInfo.resolution = resolution.second;
 }
 
-void IIO_sensor::pushEvent(AtomicBuffer& buffer, Event e)
+void IIOSensor::pushEvent(AtomicBuffer& buffer, Event e)
 {
+    if (!mIsEnabled.load())
+        return;
+
     std::unique_lock<std::mutex> lock(buffer.mutex);
 
     /* Remove first event from queue and place new to the end */
@@ -99,34 +106,8 @@ void IIO_sensor::pushEvent(AtomicBuffer& buffer, Event e)
     buffer.eventBuffer.push(e);
 }
 
-size_t IIO_sensor::getReadyEventsCount(OperationMode mode)
+int IIOSensor::getReadyEvents(std::vector<Event>& events, OperationMode mode)
 {
-    size_t eventCount = 0;
-
-    switch (mode) {
-        case OperationMode::NORMAL:
-        {
-            std::unique_lock<std::mutex> bufferLock(mEventBuffer.mutex);
-            eventCount = mEventBuffer.eventBuffer.size();
-            break;
-        }
-        case OperationMode::DATA_INJECTION:
-        {
-            std::unique_lock<std::mutex> injectLock(mInjectEventBuffer.mutex);
-            eventCount = mInjectEventBuffer.eventBuffer.size();
-            break;
-        }
-    }
-
-    return eventCount;
-}
-
-int IIO_sensor::getReadyEvents(std::vector<Event>& events, OperationMode mode, int maxEventCount)
-{
-    if (maxEventCount < 1) {
-        return 0;
-    }
-
     int eventCount = 0;
     Event event;
     switch (mode) {
@@ -135,8 +116,6 @@ int IIO_sensor::getReadyEvents(std::vector<Event>& events, OperationMode mode, i
             std::lock_guard<std::mutex> bufferLock(mEventBuffer.mutex);
 
             eventCount = mEventBuffer.eventBuffer.size();
-            if (eventCount > maxEventCount)
-                eventCount = maxEventCount;
 
             for (int i = 0; i < eventCount; i++) {
                 event = mEventBuffer.eventBuffer.front();
@@ -150,8 +129,6 @@ int IIO_sensor::getReadyEvents(std::vector<Event>& events, OperationMode mode, i
             std::lock_guard<std::mutex> injectLock(mInjectEventBuffer.mutex);
 
             eventCount = mInjectEventBuffer.eventBuffer.size();
-            if (eventCount > maxEventCount)
-                eventCount = maxEventCount;
 
             for (int i = 0; i < eventCount; i++) {
                 events.push_back(mInjectEventBuffer.eventBuffer.front());
@@ -164,10 +141,37 @@ int IIO_sensor::getReadyEvents(std::vector<Event>& events, OperationMode mode, i
     return eventCount;
 }
 
-Return<Result> IIO_sensor::activate(bool enable)
+void IIOSensor::addVirtualListener(uint32_t sensorHandle)
 {
+    if (std::find(mListenerHandlers.begin(), mListenerHandlers.end(),
+        sensorHandle) == mListenerHandlers.end()) {
+        mListenerHandlers.push_back(sensorHandle);
+    }
+}
+
+void IIOSensor::removeVirtualListener(uint32_t sensorHandle)
+{
+    std::vector<uint32_t>::iterator iter =
+        std::find(mListenerHandlers.begin(), mListenerHandlers.end(),
+        sensorHandle);
+
+    if (iter != mListenerHandlers.end()) {
+        mListenerHandlers.erase(iter);
+    }
+}
+
+bool IIOSensor::hasActiveListeners() const
+{
+    return !mListenerHandlers.empty();
+}
+
+
+Return<Result> IIOSensor::activate(bool enable)
+{
+    mIsEnabled = enable;
+
     /* Flush event queues when sensor is deactivated*/
-    if (mIsEnabled && !enable) {
+    if (mIsEnabled.load() && !enable) {
         std::unique_lock<std::mutex> lock(mEventBuffer.mutex);
         mEventBuffer.eventBuffer = std::queue<Event>();
         lock.unlock();
@@ -176,42 +180,46 @@ Return<Result> IIO_sensor::activate(bool enable)
         mInjectEventBuffer.eventBuffer = std::queue<Event>();
         injectLock.unlock();
     } else {
+        mTimestamp = ::android::elapsedRealtimeNano();
         sendAdditionalData();
     }
 
-    ALOGD("%s %s", enable ? "Activating" : "Deactivating", mSensorDescriptor.sensorInfo.name.c_str());
-    mIsEnabled = enable;
+    ALOGD("%s %s", enable ? "Activating" : "Deactivating",
+        mSensorDescriptor.sensorInfo.name.c_str());
     return Return<Result>(Result::OK);
 }
 
-Return<Result> IIO_sensor::batch(int64_t argSamplingPeriodNs, int64_t maxReportLatency)
+Return<Result> IIOSensor::batch(int64_t argSamplingPeriodNs, int64_t)
 {
     uint16_t requestedODR = samplingPeriodNsToODR(argSamplingPeriodNs);
 
-    ALOGD("Requested to set %u Hz as ODR for %s", requestedODR, mSensorDescriptor.sensorInfo.name.c_str());
+    ALOGD("Requested to set %u Hz as ODR for %s",
+        requestedODR, mSensorDescriptor.sensorInfo.name.c_str());
 
     if (!testSensorODR(requestedODR)) {
 #ifdef POLL_DEBUG
-        ALOGD("Unsupported ODR = %d Hz requested for %s, samplingPeriod = %ld", requestedODR,
-                mSensorDescriptor.sensorInfo.name.c_str(), argSamplingPeriodNs);
+        ALOGD("Unsupported ODR = %d Hz requested for %s, samplingPeriod = %ld",
+            requestedODR, mSensorDescriptor.sensorInfo.name.c_str(),
+            argSamplingPeriodNs);
 
-        ALOGD("ODR has been changed to closest (%u) from requested %u Hz for %s", getClosestOdr(requestedODR),
-                requestedODR, mSensorDescriptor.sensorInfo.name.c_str());
+        ALOGD("ODR has been changed to closest (%u) from requested %u Hz for %s",
+            getClosestOdr(requestedODR), requestedODR,
+            mSensorDescriptor.sensorInfo.name.c_str());
 #endif
         requestedODR = getClosestOdr(requestedODR);
     }
 #ifdef POLL_DEBUG
-    ALOGD("Set new ODR for %s equal %d Hz", mSensorDescriptor.sensorInfo.name.c_str(), requestedODR);
+    ALOGD("Set new ODR for %s equal %d Hz",
+        mSensorDescriptor.sensorInfo.name.c_str(), requestedODR);
 #endif
 
     mCurrODR = requestedODR;
-    mMaxReportLatency = maxReportLatency;
-    ALOGD("Coming out from batch. samplPeriod = %lu, setup ODR for %s as %u Hz", argSamplingPeriodNs,
-            mSensorDescriptor.sensorInfo.name.c_str(), mCurrODR.load());
+    ALOGD("Coming out from batch. samplPeriod = %lu, setup ODR for %s as %u Hz",
+        argSamplingPeriodNs, mSensorDescriptor.sensorInfo.name.c_str(), mCurrODR.load());
     return Return<Result>(Result::OK);
 }
 
-Return<Result> IIO_sensor::flush()
+Return<Result> IIOSensor::flush()
 {
     if (mIsEnabled.load()) {
         pushEvent(mEventBuffer, createFlushEvent());
@@ -222,7 +230,7 @@ Return<Result> IIO_sensor::flush()
     }
 }
 
-void IIO_sensor::medianFilter(Event &readEvent)
+void IIOSensor::medianFilter(Event &readEvent)
 {
     Vector3D<double> newVector = {0.0, 0.0, 0.0};
 
@@ -259,7 +267,7 @@ void IIO_sensor::medianFilter(Event &readEvent)
     readEvent.u.vec3.z = sortedFilterBuffer[sortedFilterBuffer.size() / 2].z;
 }
 
-Event IIO_sensor::chunkTransform(const IIOBuffer& rawBuffer)
+Event IIOSensor::chunkTransform(const IIOBuffer& rawBuffer)
 {
     Event event;
 
@@ -272,7 +280,7 @@ Event IIO_sensor::chunkTransform(const IIOBuffer& rawBuffer)
     return event;
 }
 
-uint64_t IIO_sensor::timestampTransform(uint64_t timestamp)
+uint64_t IIOSensor::timestampTransform(uint64_t timestamp)
 {
     /*
     * Those calculations are required because Android expects us to send timestamp in nanoseconds from boot
@@ -290,54 +298,39 @@ uint64_t IIO_sensor::timestampTransform(uint64_t timestamp)
 
 }
 
-void IIO_sensor::sendAdditionalData()
+void IIOSensor::sendAdditionalData()
 {
-    Event event;
-    event.sensorType = SensorType::ADDITIONAL_INFO;
-    event.sensorHandle = mSensorDescriptor.sensorInfo.sensorHandle;
-    event.timestamp = ::android::elapsedRealtimeNano();
-    AdditionalInfo inf;
-    inf.type = AdditionalInfoType::AINFO_BEGIN;
-    inf.serial = 0;
-    event.u.additional = inf;
-    pushEvent(mEventBuffer,event);
+    std::vector<Event> additionalEvents = generateAdditionalEvent();
 
-    event.u.additional.type = AdditionalInfoType::AINFO_SENSOR_PLACEMENT;
-    memcpy(&event.u.additional.u, &mSensorDescriptor.sensorPosition, sizeof(mSensorDescriptor.sensorPosition));
-    event.timestamp = ::android::elapsedRealtimeNano();
-    pushEvent(mEventBuffer,event);
-
-    event.u.additional.type = AdditionalInfoType::AINFO_END;
-    event.timestamp = ::android::elapsedRealtimeNano();
-    pushEvent(mEventBuffer,event);
+    for (size_t i = 0; i < additionalEvents.size(); ++i) {
+        pushEvent(mEventBuffer, additionalEvents[i]);
+    }
 }
 
-Event IIO_sensor::createFlushEvent()
-{
-    Event flushEvent;
 
-    flushEvent.sensorHandle = mSensorDescriptor.sensorInfo.sensorHandle;
-    flushEvent.sensorType = SensorType::META_DATA;
-    flushEvent.u.meta.what = MetaDataEventType::META_DATA_FLUSH_COMPLETE;
 
-    return flushEvent;
-}
-
-void IIO_sensor::transformData(const IIOBuffer& rawBuffer) {
+void IIOSensor::transformData(const IIOBuffer& rawBuffer) {
     Event event;
 
     event = chunkTransform(rawBuffer);
     event.timestamp = timestampTransform(rawBuffer.timestamp);
+
+    if (event.timestamp < mTimestamp) {
+            return;
+    }
+    mTimestamp = event.timestamp;
+
     event.sensorType = mSensorDescriptor.sensorInfo.type;
     event.u.vec3.status = SensorStatus::ACCURACY_HIGH;
     event.sensorHandle = mSensorDescriptor.sensorInfo.sensorHandle;
 
 #ifdef POLL_DEBUG
-    ALOGD(" ===== > Event from %d sensor (count = %u): x = %f, y = %f, z = %f, norm = %f, Rawtimestamp = %lu",
+    ALOGD(" ===== > Event from %d sensor (count = %u): x = %f, y = %f, z = %f, \
+        norm = %f, event.timestamp = %lu",
     event.sensorHandle, mCounter, event.u.vec3.x,
         event.u.vec3.y, event.u.vec3.z,
-        std::sqrt(event.u.vec3.x * event.u.vec3.x + event.u.vec3.y * event.u.vec3.y + event.u.vec3.z * event.u.vec3.z),
-        rawBuffer.timestamp);
+        std::sqrt(event.u.vec3.x * event.u.vec3.x + event.u.vec3.y * event.u.vec3.y
+        + event.u.vec3.z * event.u.vec3.z), event.timestamp);
 #endif
 
     mCounter++;
@@ -345,7 +338,7 @@ void IIO_sensor::transformData(const IIOBuffer& rawBuffer) {
     pushEvent(mEventBuffer, event);
 }
 
-void IIO_sensor::getAvailFreqTable()
+void IIOSensor::getAvailFreqTable()
 {
     std::ifstream file(mSensorDescriptor.availFreqFileName);
     if (!file.is_open()) {
@@ -368,12 +361,12 @@ void IIO_sensor::getAvailFreqTable()
     std::sort(mAvaliableODR.begin(), mAvaliableODR.end());
 }
 
-void IIO_sensor::injectEvent(const Event& event)
+void IIOSensor::injectEvent(const Event& event)
 {
     pushEvent(mInjectEventBuffer, event);
 }
 
-uint16_t IIO_sensor::getClosestOdr(uint16_t requestedODR)
+uint16_t IIOSensor::getClosestOdr(uint16_t requestedODR)
 {
     auto it = std::lower_bound(mAvaliableODR.begin(), mAvaliableODR.end(), requestedODR);
 

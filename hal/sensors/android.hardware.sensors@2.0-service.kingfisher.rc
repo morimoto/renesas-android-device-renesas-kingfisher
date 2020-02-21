@@ -18,7 +18,7 @@ on late-init
     write /sys/bus/iio/devices/iio:device0/scan_elements/in_magn_y_en 1
     write /sys/bus/iio/devices/iio:device0/scan_elements/in_magn_z_en 1
     write /sys/bus/iio/devices/iio:device0/scan_elements/in_timestamp_en 1
-    write /sys/bus/iio/devices/iio:device0/buffer/length 100
+    write /sys/bus/iio/devices/iio:device0/buffer/length 1
     write /sys/bus/iio/devices/iio:device0/in_accel_sampling_frequency 200
     write /sys/bus/iio/devices/iio:device0/in_accel_scale 1
     write /sys/bus/iio/devices/iio:device0/in_magn_sampling_frequency 100
@@ -30,7 +30,7 @@ on late-init
     write /sys/bus/iio/devices/iio:device1/scan_elements/in_anglvel_y_en 1
     write /sys/bus/iio/devices/iio:device1/scan_elements/in_anglvel_z_en 1
     write /sys/bus/iio/devices/iio:device1/scan_elements/in_timestamp_en 1
-    write /sys/bus/iio/devices/iio:device1/buffer/length 100
+    write /sys/bus/iio/devices/iio:device1/buffer/length 1
     write /sys/bus/iio/devices/iio:device1/in_anglvel_sampling_frequency 380
     write /sys/bus/iio/devices/iio:device1/in_anglvel_scale 1
     write /sys/bus/iio/devices/trigger1/sampling_frequency 95

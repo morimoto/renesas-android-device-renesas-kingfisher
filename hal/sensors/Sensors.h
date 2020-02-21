@@ -10,9 +10,10 @@
 #include <fmq/MessageQueue.h>
 #include <hidl/MQDescriptor.h>
 
-#include "IIO_sensor.h"
-#include "IIO_sensor_descriptors.h"
+#include "IIOSensor.h"
+#include "SensorDescriptors.h"
 #include "common.h"
+#include "FusionSensor.h"
 
 namespace android {
 namespace hardware {
@@ -56,7 +57,10 @@ class Sensors : public ISensors
                                   const sp<ISensorsCallback>& sensorsCallback) override;
 
     private:
+        Return<Result> HWBatch(int32_t, int64_t, int64_t);
+        Return<Result> virtualBatch(int32_t, int64_t, int64_t);
         void pollIIODeviceGroupBuffer(uint32_t groupIndex);
+        void pollVirtualDeviceGroupBuffer(uint32_t groupIndex);
 
         void startPollThreads();
         void stopPollThreads();
@@ -88,15 +92,15 @@ class Sensors : public ISensors
             return (handle > 0 && handle < HANDLE_COUNT);
         };
 
-        std::vector<std::unique_ptr<IIO_sensor>> mSensors;
+        std::vector<std::shared_ptr<BaseSensor>> mSensors;
+        FusionSensor mFusionSensor;
 
-        /* TODO: Investigate if synchronization is needed for it */
         OperationMode mMode;
 
         std::atomic<bool> mTerminatePollThreads;
         static constexpr int maxReadRetries = 5;
 
-        std::vector<IIOSensorDescriptor> mSensorDescriptors;
+        std::vector<SensorDescriptor> mSensorDescriptors;
         std::vector<SensorsGroupDescriptor> mSensorGroups;
 
         /* v2.0 specific attributes taken from default way */
@@ -108,7 +112,15 @@ class Sensors : public ISensors
 
         EventFlag* mEventQueueFlag;
         std::mutex mWriteLock;
-        bool mPollThreadsStarted;
+
+        std::atomic<bool> mPollThreadsStarted;
+
+        std::atomic<bool> mAccelEventReady = false;
+        std::atomic<bool> mGyroEventReady = false;
+        std::atomic<bool> mMagnEventReady = false;
+        void setReadyFlag(SensorType);
+        void resetReadyFlag(FUSION_MODE);
+        void notifyListeners();
 };
 
 }  // namespace kingfisher
